@@ -6,11 +6,14 @@ This project explores the use of event-driven Spiking Neural Networks (SNNs) for
 ## Dataset
 
 Power consumption traces collected from an 8-bit ATmega8515 microcontroller while executing the Advanced Encryption Standard (AES-128) algorithm alongside first-order Boolean masking. The selected data uses a single fixed secret key through all traces.
+
 ![Project Image](https://raw.githubusercontent.com/Yoguti/neuromorphic-sca/master/images/1.png)
 
 ## Preparation
 
 Power traces were converted into event-driven spike trains using an asynchronous delta modulation (ADM) encoding scheme similar to the method described in *An Asynchronous Delta Modulator for Spike Encoding in Event-Driven Brain-Machine Interface*. Positive and negative spikes were generated whenever the difference between the input signal and an adaptive reference exceeded a predefined threshold.
+
+![Project Image](https://raw.githubusercontent.com/Yoguti/neuromorphic-sca/master/images/2.png)
 
 ## Environment
 
