@@ -1,7 +1,8 @@
 # Embedded Spiking Neural Network for Side-Channel Analysis
 
-An SNN modeled using Evolutionary Optimization for Neuromorphic Systems (EONS) for optimization and the ASCAD dataset for training.
+An SNN modeled using Evolutionary Optimization for Neuromorphic Systems (EONS) the ASCAD dataset for training.
 
+This project explores the use of event-driven Spiking Neural Networks (SNNs) for side-channel analysis of AES power traces. The objective is to train an optimized neuromorphic model capable of identifying cryptographic operations from power consumption patterns, enabling future reconstruction or inference of encryption-related information from side-channel leakage. The project also focuses on developing a hardware-efficient SNN architecture suitable for embedded implementation in VHDL and deployment on FPGA platforms.
 ## Dataset
 
 Power consumption traces collected from an 8-bit ATmega8515 microcontroller while executing the Advanced Encryption Standard (AES-128) algorithm alongside first-order Boolean masking. The selected data uses a single fixed secret key through all traces.
