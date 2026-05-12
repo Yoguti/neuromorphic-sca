@@ -6,6 +6,7 @@ This project explores the use of event-driven Spiking Neural Networks (SNNs) for
 ## Dataset
 
 Power consumption traces collected from an 8-bit ATmega8515 microcontroller while executing the Advanced Encryption Standard (AES-128) algorithm alongside first-order Boolean masking. The selected data uses a single fixed secret key through all traces.
+![Project Image](https://raw.githubusercontent.com/Yoguti/neuromorphic-sca/master/images/1.png)
 
 ## Preparation
 
