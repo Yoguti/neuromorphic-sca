@@ -9,6 +9,18 @@
 #define SNN_NUM_INPUTS       2    // fixed: UP (0), DOWN (1)
 #define SNN_NUM_OUTPUTS      9    // fixed: HW 0..8 
 
+
+// MACROS FOR CONVERTING BETWEEN NETWORK IDS AND LIF ARRAY INDICES
+// Network ID → lif array index  (only valid for non-input nodes)
+// // offsets the reserved input nodes to find the real indexes
+#define SNN_NODE_TO_LIF(net_id)  ((net_id) - SNN_NUM_INPUTS)
+
+// lif array index → network ID
+#define SNN_LIF_TO_NODE(lif_idx) ((lif_idx) + SNN_NUM_INPUTS)
+
+// Total LIF neurons allocated (outputs + hidden) (input nodes are not LIFs)
+#define SNN_LIF_COUNT(net) ((net)->num_outputs + (net)->num_hidden)
+
 typedef struct {
     uint16_t source_node;  // network ID of the firing node (can be 0 or 1 for inputs)
     uint16_t target_node;  // network ID of the receiving node (NEVER 0 or 1)
@@ -51,7 +63,7 @@ void snn_reset(snn_network_t *net);
 void snn_tick(snn_network_t *net);
 
 // Add a new hidden node, returns network id
-uint16_t snn_add_hidden(snn_network_t *net);
+uint16z_t snn_add_hidden(snn_network_t *net);
 
 // delete a hidden node by network id
 int snn_delete_hidden(snn_network_t *net, uint16_t node_id);
@@ -61,6 +73,7 @@ int snn_add_synapse(snn_network_t *net, uint16_t src, uint16_t tgt, int8_t w);
 // remove synapse by index in the synapses array.
 void snn_delete_synapse(snn_network_t *net, uint16_t synapse_idx);
 
+lif_neuron_t *get_neuron(snn_network_t *net, uint16_t node_id);
 
 #endif // NETWORK_H
 
