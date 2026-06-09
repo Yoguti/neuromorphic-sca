@@ -125,9 +125,67 @@ uint16_t snn_add_hidden(snn_network_t *net) {
 }
 
 // delete a hidden node by network id
-int snn_delete_hidden(snn_network_t *net, uint16_t node_id);
+int snn_delete_hidden(snn_network_t *net, uint16_t node_id) {
+    if (node_id < SNN_NUM_INPUTS + net->num_outputs) {
+        return -1;
+    }
+    uint16_t lif_idx = SNN_NODE_TO_LIF(node_id);
+    if (lif_idx >= SNN_LIF_COUNT(net)) {
+        return -1;
+    }
 
-int snn_add_synapse(snn_network_t *net, uint16_t src, uint16_t tgt, int8_t w);
+    // Shift neurons down to fill the gap
+    for (uint16_t i = lif_idx; i < SNN_LIF_COUNT(net) - 1; i++) {
+        net->nodes[i] = net->nodes[i + 1];
+    }
+
+    net->num_hidden--;
+
+    // remove synapses connected to the deleted node
+    for (uint16_t i = 0; i < net->num_synapses; ) {
+        synapse_t syn = net->synapses[i];
+        if (syn.source_node == node_id || syn.target_node == node_id) {
+            snn_delete_synapse(net, i);
+        } else {
+            i++;
+        }
+    }
+
+    return 0;
+}
+
+int snn_add_synapse(snn_network_t *net, uint16_t src, uint16_t tgt, int8_t w) {
+    if (!net) {
+        return -1;
+    }
+    if (tgt < SNN_NUM_INPUTS || SNN_NODE_TO_LIF(tgt) >= SNN_LIF_COUNT(net)) {
+        return -1;
+    }
+    uint16_t total_nodes = net->num_inputs + net->num_outputs + net->num_hidden;
+    if (src >= total_nodes) {
+        return -1;
+    }
+    synapse_t *new_synapses = realloc(net->synapses, sizeof(synapse_t) * (net->num_synapses + 1));
+    if (!new_synapses) {
+        return -1;
+    }
+    net->synapses = new_synapses;
+    net->synapses[net->num_synapses].source_node = src;
+    net->synapses[net->num_synapses].target_node = tgt;
+    net->synapses[net->num_synapses].weight = w;
+
+    net->num_synapses++;
+    return 0;
+}
+
 
 // remove synapse by index in the synapses array.
-void snn_delete_synapse(snn_network_t *net, uint16_t synapse_idx);
+void snn_delete_synapse(snn_network_t *net, uint16_t synapse_idx) {
+    if (synapse_idx >= net->num_synapses) {
+        return;
+    }
+    for (uint16_t i = synapse_idx; i < net->num_synapses - 1; i++) {
+        net->synapses[i] = net->synapses[i + 1];
+    }
+    net->num_synapses--;
+}
