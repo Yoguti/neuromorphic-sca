@@ -40,13 +40,14 @@ void lif_add_input(lif_neuron_t *neuron, int16_t input_current) {
 
 void lif_apply_leak(lif_neuron_t *neuron) {
     // apply the rule: v(t+1) = v(t) - (v(t) - v_rest)/τ
-    // distance from current membrane voltage to resting potential
     int32_t delta = (int32_t)neuron->membrane_potential - (int32_t)neuron->resting_potential;
 
-    // delta / (2 ^ leak_factor) models exponential decay
-    int32_t leakage = delta / (1 << neuron->leak_factor);
-    neuron->membrane_potential = (int16_t)( neuron->membrane_potential - leakage);
-    
+    // arithmetic right-shift models exponential decay; clamp to 1 so the
+    // neuron always drifts toward rest even when delta < (1 << leak_factor)
+    int32_t leakage = delta >> neuron->leak_factor;
+    if (delta != 0 && leakage == 0) leakage = (delta > 0) ? 1 : -1;
+
+    neuron->membrane_potential = (int16_t)(neuron->membrane_potential - leakage);
 }
 
 uint8_t lif_check_spike(lif_neuron_t *neuron) {

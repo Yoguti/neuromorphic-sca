@@ -7,7 +7,11 @@
 #define DOWN_INPUT_ID 1
 
 #define SNN_NUM_INPUTS       2    // fixed: UP (0), DOWN (1)
-#define SNN_NUM_OUTPUTS      9    // fixed: HW 0..8 
+#define SNN_NUM_OUTPUTS      9    // fixed: HW 0..8
+
+// maximum LIF neurons (outputs + hidden) that can ever exist in one network;
+// used to size the accumulated_inputs scratch buffer in the struct
+#define SNN_MAX_LIF_COUNT    64
 
 
 // MACROS FOR CONVERTING BETWEEN NETWORK IDS AND LIF ARRAY INDICES {
@@ -42,6 +46,9 @@ typedef struct {
 
     uint16_t   num_synapses;  // mutable by EONS
     synapse_t *synapses;
+
+    // scratch buffer reused every tick; avoids a VLA on the stack
+    int16_t accumulated_inputs[SNN_MAX_LIF_COUNT];
 } snn_network_t;
 
 // Allocate and initialise a minimal network (no hidden nodes, no synapses)
@@ -57,7 +64,7 @@ void snn_reset(snn_network_t *net);
 /* advance network by one tick.
 
   1. For every synapse: if source fired last tick, accumulate
-    weight * 1 into the target LIF neuron's input
+    weight * source_fired into the target LIF neuron's input
   2. For every LIF neuron: call lif_step() with the accumulated input
   3. Clear accumulated inputs for next tick.
 
@@ -81,4 +88,3 @@ void snn_delete_synapse(snn_network_t *net, uint16_t synapse_idx);
 lif_neuron_t *get_neuron(snn_network_t *net, uint16_t node_id);
 
 #endif // NETWORK_H
-
