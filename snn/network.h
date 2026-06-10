@@ -66,7 +66,7 @@ void snn_reset(snn_network_t *net);
 void snn_tick(snn_network_t *net);
 
 // Add a new hidden node, returns network id
-uint16z_t snn_add_hidden(snn_network_t *net);
+uint16_t snn_add_hidden(snn_network_t *net);
 
 // delete a hidden node by network id
 int snn_delete_hidden(snn_network_t *net, uint16_t node_id);

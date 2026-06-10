@@ -81,7 +81,7 @@ void snn_tick(snn_network_t *net) {
         uint16_t src = syn.source_node;
         uint16_t tgt = syn.target_node;
 
-        uint8_t source_fired = 0;
+        int8_t source_fired = 0; //needs to be int8_t to store input spikes from input nodes (can be -128 to 127)
         
         // check if source is an input node or a hidden/output LIF neuron
         if (src < SNN_NUM_INPUTS) {
@@ -93,7 +93,7 @@ void snn_tick(snn_network_t *net) {
         // if source fired, add the weight to the target arr 
         if (source_fired) {
             uint16_t tgt_idx = SNN_NODE_TO_LIF(tgt);
-            accumulated_inputs[tgt_idx] += syn.weight;
+            accumulated_inputs[tgt_idx] += syn.weight*source_fired;
         }
     }
 
@@ -148,6 +148,16 @@ int snn_delete_hidden(snn_network_t *net, uint16_t node_id) {
             snn_delete_synapse(net, i);
         } else {
             i++;
+        }
+    }
+    // update synapse source/target indices above the deleted node
+    for (uint16_t i = 0; i < net->num_synapses; i++) {
+        synapse_t *syn = &net->synapses[i];
+        if (syn->source_node > node_id) {
+            syn->source_node--;
+        }
+        if (syn->target_node > node_id) {
+            syn->target_node--;
         }
     }
 
