@@ -23,7 +23,6 @@ void lif_init_default(lif_neuron_t *n)
         LIF_DEFAULT_RESET,
         LIF_DEFAULT_RESTING
     );
-    // fixed at initialization to avoid bursting behavior/hyperactivity
     n->refractory_period = LIF_DEFAULT_REFRACTORY_PERIOD;
     n->refractory_counter = 0;
 }

@@ -1,4 +1,6 @@
 #include "neuron.h"
+#include "../libs/arena.h"
+#include <string.h>
 
 #ifndef NETWORK_H
 #define NETWORK_H
@@ -40,6 +42,8 @@ typedef struct {
     uint16_t num_outputs;  // always SNN_NUM_OUTPUTS (9)
     uint16_t num_hidden;   // mutable by EONS, starts at 0
 
+    Arena *arena;
+
     lif_neuron_t *nodes;
 
     int8_t input_spikes[SNN_NUM_INPUTS]; // inputs gates for db data don't need neurons
@@ -53,10 +57,7 @@ typedef struct {
 
 // Allocate and initialise a minimal network (no hidden nodes, no synapses)
 // All LIF output neurons are initialised with lif_init_default(lif_neuron_t *)
-snn_network_t *snn_create(void);
-
-// Free all heap memory owned by the network
-void snn_destroy(snn_network_t *net);
+snn_network_t *snn_create(Arena *arena);
 
 // Reset all LIF states to resting (call between traces during inference/training)
 void snn_reset(snn_network_t *net);

@@ -1,19 +1,20 @@
 #include "network.h"
 
+
 // Allocate and initialise a minimal network (no hidden nodes, no synapses)
 // All LIF output neurons are initialised with lif_init_default(lif_neuron_t *)
-snn_network_t *snn_create(void) {
-    snn_network_t *net = malloc(sizeof(snn_network_t));
+snn_network_t *snn_create(Arena *arena) {
+    snn_network_t *net = arena_push_struct(arena, snn_network_t);
     if (!net) return NULL;
+
+    net->arena = arena;
 
     net->num_inputs = SNN_NUM_INPUTS;
     net->num_outputs = SNN_NUM_OUTPUTS;
     net->num_hidden = 0;
 
-    // Allocate LIF neurons for outputs (inputs are not LIFs)
-    net->nodes = malloc(sizeof(lif_neuron_t) * SNN_LIF_COUNT(net));
+    net->nodes = arena_push_array(arena, lif_neuron_t, SNN_LIF_COUNT(net));
     if (!net->nodes) {
-        free(net);
         return NULL;
     }
 
@@ -33,14 +34,6 @@ snn_network_t *snn_create(void) {
     }
 
     return net;
-}
-
-// Free all heap memory owned by the network
-void snn_destroy(snn_network_t *net) {
-    if(!net) return;
-    free(net->nodes);
-    free(net->synapses);
-    free(net);
 }
 
 // Reset all LIF states to resting (call between traces during inference/training)
@@ -113,14 +106,20 @@ uint16_t snn_add_hidden(snn_network_t *net) {
     }
 
     uint16_t new_node_id = net->num_inputs + net->num_outputs + net->num_hidden;
+    uint16_t current_count = SNN_LIF_COUNT(net);
 
-    lif_neuron_t *new_nodes = realloc(net->nodes, sizeof(lif_neuron_t) * (SNN_LIF_COUNT(net) + 1));
+    lif_neuron_t *new_nodes = arena_push_array(net->arena, lif_neuron_t, current_count + 1);
     if (!new_nodes) {
         return UINT16_MAX;
     }
+
+    if (net->nodes != NULL && current_count > 0) {
+        memcpy(new_nodes, net->nodes, sizeof(lif_neuron_t) * current_count);
+    }
+
     net->nodes = new_nodes;
 
-    lif_init_default(&net->nodes[SNN_LIF_COUNT(net)]);
+    lif_init_default(&net->nodes[current_count]);
 
     net->num_hidden++;
     return new_node_id;
@@ -179,17 +178,24 @@ int snn_add_synapse(snn_network_t *net, uint16_t src, uint16_t tgt, int8_t w) {
     if (src >= total_nodes) {
         return -1;
     }
-    synapse_t *new_synapses = realloc(net->synapses, sizeof(synapse_t) * (net->num_synapses + 1));
+
+    synapse_t *new_synapses = arena_push_array(net->arena, synapse_t, net->num_synapses + 1);
     if (!new_synapses) {
         return -1;
     }
+
+    if (net->synapses != NULL && net->num_synapses > 0) {
+        memcpy(new_synapses, net->synapses, sizeof(synapse_t) * net->num_synapses);
+    }
+
     net->synapses = new_synapses;
+
     net->synapses[net->num_synapses].source_node = src;
     net->synapses[net->num_synapses].target_node = tgt;
     net->synapses[net->num_synapses].weight = w;
 
     net->num_synapses++;
-    return 0;
+    return 0; 
 }
 
 // remove synapse by index in the synapses array.
