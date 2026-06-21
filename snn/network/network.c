@@ -1,8 +1,6 @@
 #include "network.h"
 
 // Allocate and initialise a minimal network (no hidden nodes, no synapses).
-// nodes and synapses are pre-allocated to their maximum sizes here; no
-// further heap/arena activity occurs during mutation or ticking.
 snn_network_t *snn_create(Arena *arena) {
     snn_network_t *net = arena_push_struct(arena, snn_network_t);
     if (!net) return NULL;
@@ -32,11 +30,7 @@ snn_network_t *snn_create(Arena *arena) {
     return net;
 }
 
-// Deep-copy src into a freshly allocated network in dest_arena. Allocates
-// full SNN_MAX_LIF_COUNT/SNN_MAX_SYNAPSES slabs like snn_create, then copies
-// only the live portion of each (SNN_LIF_COUNT(src) nodes, num_synapses
-// synapses); the rest of the slab is left at whatever the arena gave us,
-// which is fine since num_hidden/num_synapses bound what's ever read.
+// Deep-copy src into a freshly allocated network in dest_arena.
 snn_network_t *snn_clone_into(Arena *dest_arena, const snn_network_t *src) {
     if (!src) return NULL;
 
