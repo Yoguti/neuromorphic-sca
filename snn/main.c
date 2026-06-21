@@ -30,7 +30,7 @@ int main(void) {
 
     candidate_t *population = engine_get_population();
     eons_params_t params = eons_default_params();
-    params.num_generations = 50;
+    params.num_generations = 500;
 
     candidate_t next_generation[POPULATION_SIZE];
 
