@@ -1,3 +1,6 @@
+#ifndef NEURON_H
+#define NEURON_H
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -43,3 +46,5 @@ void lif_apply_leak(lif_neuron_t *neuron);
 uint8_t lif_check_spike(lif_neuron_t *neuron);
 
 void lif_step(lif_neuron_t *neuron, int16_t input_current);
+
+#endif // NEURON_H

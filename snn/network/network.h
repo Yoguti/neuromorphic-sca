@@ -12,8 +12,10 @@
 #define SNN_NUM_OUTPUTS      9    // fixed: HW 0..8
 
 // maximum LIF neurons (outputs + hidden) that can ever exist in one network;
-// used to size the accumulated_inputs scratch buffer in the struct
 #define SNN_MAX_LIF_COUNT    64
+
+// maximum synapses that can ever exist in one network; same pre-allocation
+#define SNN_MAX_SYNAPSES     512
 
 
 // MACROS FOR CONVERTING BETWEEN NETWORK IDS AND LIF ARRAY INDICES {
@@ -42,22 +44,23 @@ typedef struct {
     uint16_t num_outputs;  // always SNN_NUM_OUTPUTS (9)
     uint16_t num_hidden;   // mutable by EONS, starts at 0
 
-    Arena *arena;
-
-    lif_neuron_t *nodes;
+    lif_neuron_t *nodes;   // fixed slab of SNN_MAX_LIF_COUNT, only the first SNN_LIF_COUNT(net) are live
 
     int8_t input_spikes[SNN_NUM_INPUTS]; // inputs gates for db data don't need neurons
 
     uint16_t   num_synapses;  // mutable by EONS
-    synapse_t *synapses;
+    synapse_t *synapses;      // fixed slab of SNN_MAX_SYNAPSES, only the first num_synapses are live
 
     // scratch buffer reused every tick; avoids a VLA on the stack
     int16_t accumulated_inputs[SNN_MAX_LIF_COUNT];
 } snn_network_t;
 
-// Allocate and initialise a minimal network (no hidden nodes, no synapses)
+
 // All LIF output neurons are initialised with lif_init_default(lif_neuron_t *)
 snn_network_t *snn_create(Arena *arena);
+
+// Deep-copy src into a freshly allocated network in dest_arena
+snn_network_t *snn_clone_into(Arena *dest_arena, const snn_network_t *src);
 
 // Reset all LIF states to resting (call between traces during inference/training)
 void snn_reset(snn_network_t *net);
@@ -73,13 +76,13 @@ void snn_reset(snn_network_t *net);
 
 void snn_tick(snn_network_t *net);
 
-// Add a new hidden node, returns network id
+// Add a new hidden node, returns network id (UINT16_MAX if SNN_MAX_LIF_COUNT reached)
 uint16_t snn_add_hidden(snn_network_t *net);
 
 // delete a hidden node by network id
 int snn_delete_hidden(snn_network_t *net, uint16_t node_id);
 
-// add a synapse, returns 0 on success and -1 on failure
+// add a synapse, returns 0 on success and -1 on failure (including SNN_MAX_SYNAPSES reached)
 int snn_add_synapse(snn_network_t *net, uint16_t src, uint16_t tgt, int8_t w);
 
 // remove synapse by index in the synapses array.

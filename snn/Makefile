@@ -1,25 +1,48 @@
 # snn/Makefile
 
 CC      = gcc
-CFLAGS  = -Wall -Wextra -std=c11 -g \
-           -I. \
-           -Inetwork \
-           -Ilibs
+CFLAGS  = -Wall -Wextra -std=c11 -g -O2 -fopenmp \
+          -I. \
+          -Inetwork \
+          -Ilibs \
+          -IEONS \
+          -Itests
+LDLIBS  = -lhdf5 -lm -fopenmp
 
-# arena_impl.c owns the single ARENA_IMPLEMENTATION define
-SRC = main.c \
-      arena_impl.c \
-      network/network.c \
-      network/neuron.c
+COMMON_SRC = arena_impl.c \
+             network/network.c \
+             network/neuron.c \
+             EONS/engine.c \
+             EONS/evolution.c \
+             EONS/export.c \
+             libs/dataset.c
 
-TARGET = snn_debug
+ENGINE_SRC = main.c $(COMMON_SRC)
+TEST_SRC   = tests/testbenches.c $(COMMON_SRC)
 
-.PHONY: all clean
+ENGINE_TARGET = snn_engine
+TEST_TARGET   = snn_tests
 
-all: $(TARGET)
+.PHONY: all engine test clean run run-test
 
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $^
+all: engine test
+
+engine: $(ENGINE_TARGET)
+
+test: $(TEST_TARGET)
+
+$(ENGINE_TARGET): main.c $(COMMON_SRC)
+	$(CC) $(CFLAGS) -o $@ main.c $(COMMON_SRC) $(LDLIBS)
+
+$(TEST_TARGET): tests/test_main.c $(TEST_SRC)
+	$(CC) $(CFLAGS) -o $@ tests/test_main.c $(TEST_SRC) $(LDLIBS)
+
+run: engine
+	./$(ENGINE_TARGET)
+
+run-test: test
+	./$(TEST_TARGET)
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(ENGINE_TARGET) $(TEST_TARGET)
+	rm -f best_network_neurons.csv best_network_synapses.csv

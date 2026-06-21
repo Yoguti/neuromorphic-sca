@@ -1,29 +1,25 @@
 #include "network.h"
 
-
-// Allocate and initialise a minimal network (no hidden nodes, no synapses)
-// All LIF output neurons are initialised with lif_init_default(lif_neuron_t *)
+// Allocate and initialise a minimal network (no hidden nodes, no synapses).
+// nodes and synapses are pre-allocated to their maximum sizes here; no
+// further heap/arena activity occurs during mutation or ticking.
 snn_network_t *snn_create(Arena *arena) {
     snn_network_t *net = arena_push_struct(arena, snn_network_t);
     if (!net) return NULL;
 
-    net->arena = arena;
-
-    net->num_inputs = SNN_NUM_INPUTS;
+    net->num_inputs  = SNN_NUM_INPUTS;
     net->num_outputs = SNN_NUM_OUTPUTS;
-    net->num_hidden = 0;
+    net->num_hidden  = 0;
 
-    net->nodes = arena_push_array(arena, lif_neuron_t, SNN_LIF_COUNT(net));
-    if (!net->nodes) {
-        return NULL;
-    }
+    net->nodes    = arena_push_array(arena, lif_neuron_t, SNN_MAX_LIF_COUNT);
+    net->synapses = arena_push_array(arena, synapse_t,    SNN_MAX_SYNAPSES);
+    if (!net->nodes || !net->synapses) return NULL;
 
     for (uint16_t i = 0; i < net->num_outputs; i++) {
         lif_init_default(&net->nodes[i]);
     }
 
     net->num_synapses = 0;
-    net->synapses = NULL;
 
     for (uint16_t i = 0; i < SNN_NUM_INPUTS; i++) {
         net->input_spikes[i] = 0;
@@ -34,6 +30,39 @@ snn_network_t *snn_create(Arena *arena) {
     }
 
     return net;
+}
+
+// Deep-copy src into a freshly allocated network in dest_arena. Allocates
+// full SNN_MAX_LIF_COUNT/SNN_MAX_SYNAPSES slabs like snn_create, then copies
+// only the live portion of each (SNN_LIF_COUNT(src) nodes, num_synapses
+// synapses); the rest of the slab is left at whatever the arena gave us,
+// which is fine since num_hidden/num_synapses bound what's ever read.
+snn_network_t *snn_clone_into(Arena *dest_arena, const snn_network_t *src) {
+    if (!src) return NULL;
+
+    snn_network_t *clone = arena_push_struct(dest_arena, snn_network_t);
+    if (!clone) return NULL;
+
+    clone->num_inputs  = src->num_inputs;
+    clone->num_outputs = src->num_outputs;
+    clone->num_hidden  = src->num_hidden;
+    clone->num_synapses = src->num_synapses;
+
+    clone->nodes    = arena_push_array(dest_arena, lif_neuron_t, SNN_MAX_LIF_COUNT);
+    clone->synapses = arena_push_array(dest_arena, synapse_t,    SNN_MAX_SYNAPSES);
+    if (!clone->nodes || !clone->synapses) return NULL;
+
+    memcpy(clone->nodes, src->nodes, sizeof(lif_neuron_t) * SNN_LIF_COUNT(src));
+    memcpy(clone->synapses, src->synapses, sizeof(synapse_t) * src->num_synapses);
+
+    for (uint16_t i = 0; i < SNN_NUM_INPUTS; i++) {
+        clone->input_spikes[i] = src->input_spikes[i];
+    }
+    for (uint16_t i = 0; i < SNN_MAX_LIF_COUNT; i++) {
+        clone->accumulated_inputs[i] = src->accumulated_inputs[i];
+    }
+
+    return clone;
 }
 
 // Reset all LIF states to resting (call between traces during inference/training)
@@ -71,7 +100,9 @@ void snn_tick(snn_network_t *net) {
         uint16_t src = syn->source_node;
         uint16_t tgt = syn->target_node;
 
-        int8_t source_fired = 0; // int8_t to carry signed ADM input spikes (-1, 0, +1)
+        int8_t source_fired = 0; // 0 or 1 fire gate; sign of the contribution
+                                  // comes from the synapse weight, not here
+                                  // (see engine.c's evaluate_network for why)
 
         if (src < SNN_NUM_INPUTS) {
             source_fired = net->input_spikes[src];
@@ -106,21 +137,7 @@ uint16_t snn_add_hidden(snn_network_t *net) {
     }
 
     uint16_t new_node_id = net->num_inputs + net->num_outputs + net->num_hidden;
-    uint16_t current_count = SNN_LIF_COUNT(net);
-
-    lif_neuron_t *new_nodes = arena_push_array(net->arena, lif_neuron_t, current_count + 1);
-    if (!new_nodes) {
-        return UINT16_MAX;
-    }
-
-    if (net->nodes != NULL && current_count > 0) {
-        memcpy(new_nodes, net->nodes, sizeof(lif_neuron_t) * current_count);
-    }
-
-    net->nodes = new_nodes;
-
-    lif_init_default(&net->nodes[current_count]);
-
+    lif_init_default(&net->nodes[SNN_LIF_COUNT(net)]);
     net->num_hidden++;
     return new_node_id;
 }
@@ -178,24 +195,15 @@ int snn_add_synapse(snn_network_t *net, uint16_t src, uint16_t tgt, int8_t w) {
     if (src >= total_nodes) {
         return -1;
     }
-
-    synapse_t *new_synapses = arena_push_array(net->arena, synapse_t, net->num_synapses + 1);
-    if (!new_synapses) {
+    if (net->num_synapses >= SNN_MAX_SYNAPSES) {
         return -1;
     }
 
-    if (net->synapses != NULL && net->num_synapses > 0) {
-        memcpy(new_synapses, net->synapses, sizeof(synapse_t) * net->num_synapses);
-    }
-
-    net->synapses = new_synapses;
-
     net->synapses[net->num_synapses].source_node = src;
     net->synapses[net->num_synapses].target_node = tgt;
-    net->synapses[net->num_synapses].weight = w;
-
+    net->synapses[net->num_synapses].weight      = w;
     net->num_synapses++;
-    return 0; 
+    return 0;
 }
 
 // remove synapse by index in the synapses array.

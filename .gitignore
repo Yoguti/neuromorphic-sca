@@ -22,7 +22,12 @@ __pycache__/
 data-prep/modulate_data
 data-prep/benchmark_conversion
 
+snn/test.c
 .vscode/
 *.swp
 *~
 .DS_Store
+best_network_neurons.csv
+best_network_synapses.csv
+snn_engine
+snn_tests
