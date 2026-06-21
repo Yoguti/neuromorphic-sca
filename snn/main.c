@@ -7,7 +7,6 @@
 #include "tests/testbenches.h"
 #include <time.h>
 
-
 int main(void) {
     srand(time(NULL));
     printf("Neuromorphic SCA: EONS Training\n");
@@ -30,10 +29,40 @@ int main(void) {
 
     candidate_t *population = engine_get_population();
     eons_params_t params = eons_default_params();
-    params.num_generations = 500;
+    params.num_generations = 100; 
+
+    char seed_names[3][128] = {
+        "network-csvs/seed_1",
+        "network-csvs/seed_2",
+        "network-csvs/seed_3"
+    };
+    
+    snn_network_t *seeds[3] = {NULL, NULL, NULL};
+    int num_seeds_loaded = 0;
+
+    for (int i = 0; i < 3; i++) {
+        seeds[i] = import_network_csv(engine_get_arena_a(), seed_names[i]);
+        if (seeds[i]) num_seeds_loaded++;
+    }
+
+    if (num_seeds_loaded > 0) {
+        printf("\n>>> SUCCESS: %d checkpoints found! Injecting seeds...\n\n", num_seeds_loaded);
+        int clones_per_seed = (POPULATION_SIZE / 10) / num_seeds_loaded; 
+        int pop_idx = 0;
+        
+        for (int i = 0; i < 3; i++) {
+            if (seeds[i]) {
+                for (int c = 0; c < clones_per_seed; c++) {
+                    population[pop_idx].network = snn_clone_into(engine_get_arena_a(), seeds[i]);
+                    pop_idx++;
+                }
+            }
+        }
+    } else {
+        printf("\n>>> No previous seeds found in 'network-csvs/'. Starting from scratch.\n\n");
+    }
 
     candidate_t next_generation[POPULATION_SIZE];
-
     int best_idx = 0;
 
     for (int gen = 0; gen < params.num_generations; gen++) {
@@ -51,6 +80,15 @@ int main(void) {
                gen, best_fitness,
                population[best_idx].network->num_hidden,
                population[best_idx].network->num_synapses);
+
+        if (gen == 30 || gen == 60 || gen == 90) {
+            int seed_idx = gen / 30; 
+            char fname[128];
+            snprintf(fname, sizeof(fname), "network-csvs/seed_%d", seed_idx);
+            
+            export_network_csv(population[best_idx].network, fname);
+            printf("  [!] Checkpoint saved/overwritten successfully: %s\n", fname);
+        }
 
         Arena *inactive_arena = engine_get_arena_b();
         arena_reset(inactive_arena);
@@ -79,7 +117,7 @@ int main(void) {
            population[best_idx].network->num_hidden,
            population[best_idx].network->num_synapses);
 
-    export_network_csv(population[best_idx].network, "best_network");
+    export_network_csv(population[best_idx].network, "network-csvs/best_network");
 
     dataset_free(ds);
     return 0;

@@ -70,10 +70,6 @@ uint8_t evaluate_network(snn_network_t *net, const int8_t *trace, size_t trace_l
         }
     }
 
-    // a silent network (no output ever fired) hasn't actually classified
-    // anything; returning 0 by default tie-break would let it silently
-    // collect credit whenever the true label happens to be 0. Signal "no
-    // decision" with the sentinel 255 so the caller can penalize it instead.
     if (best_count == 0) {
         return 255;
     }
@@ -91,8 +87,8 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size, const 
 
     const uint16_t THRESHOLD_SYNAPSES = 30;
     const uint16_t THRESHOLD_NEURONS  = 15;
-    const float PENALTY_SYNAPSE = 0.002f;
-    const float PENALTY_NEURON  = 0.005f;
+    const float PENALTY_SYNAPSE = 0.008f; 
+    const float PENALTY_NEURON  = 0.020f;
 
     const float FIDELITY_THRESHOLD_FOR_PENALTY = 0.30f;
 

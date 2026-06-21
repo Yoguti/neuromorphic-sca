@@ -42,11 +42,6 @@ static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
 }
 
-// Linearly interpolate the mutation-count ceiling between
-// params->num_mutations (generation 0) and params->num_mutations_min
-// (generation == num_generations - 1), clamped to that range. With
-// num_generations <= 1 or num_mutations_min == num_mutations, this is
-// just a constant, so annealing is opt-in by construction.
 static int annealed_num_mutations(const eons_params_t *params, int generation) {
     if (params->num_generations <= 1) return params->num_mutations;
 
