@@ -9,7 +9,11 @@ eons_params_t eons_default_params(void)
     p.crossover_rate   = 0.0f;
     p.merge_rate       = 0.0f;
     p.mutation_rate    = 0.75f;
-    p.num_mutations    = 3;
+    // mutation count anneals linearly from num_mutations (gen 0) down to
+    // num_mutations_min (final generation): broad exploration early,
+    // conservative refinement once the search has found useful structure.
+    p.num_mutations     = 7;
+    p.num_mutations_min = 2;
 
     p.add_node_rate    = 0.15f;
     p.delete_node_rate = 0.05f;
@@ -36,6 +40,26 @@ static float rand_unit(void) {
 static int rand_range(int min, int max) {
     if (max <= min) return min;
     return min + rand() % (max - min + 1);
+}
+
+// Linearly interpolate the mutation-count ceiling between
+// params->num_mutations (generation 0) and params->num_mutations_min
+// (generation == num_generations - 1), clamped to that range. With
+// num_generations <= 1 or num_mutations_min == num_mutations, this is
+// just a constant, so annealing is opt-in by construction.
+static int annealed_num_mutations(const eons_params_t *params, int generation) {
+    if (params->num_generations <= 1) return params->num_mutations;
+
+    float t = (float)generation / (float)(params->num_generations - 1);
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+
+    float interpolated = (float)params->num_mutations +
+                          t * (float)(params->num_mutations_min - params->num_mutations);
+
+    int result = (int)(interpolated + 0.5f); // round to nearest
+    if (result < 1) result = 1; // at least one mutation if mutation_rate triggers at all
+    return result;
 }
 
 static int compare_candidates(const void *a, const void *b) {
@@ -136,8 +160,9 @@ static void apply_one_mutation(snn_network_t *net, const eons_params_t *p) {
     }
 }
 
-void eons_do_epoch(candidate_t *current, candidate_t *next, Arena *next_arena, const eons_params_t *params) {
+void eons_do_epoch(candidate_t *current, candidate_t *next, Arena *next_arena, const eons_params_t *params, int generation) {
     int pop_size = params->population_size;
+    int max_mutations = annealed_num_mutations(params, generation);
 
     candidate_t *ranked = malloc(pop_size * sizeof(candidate_t));
     for (int i = 0; i < pop_size; i++) {
@@ -174,7 +199,7 @@ void eons_do_epoch(candidate_t *current, candidate_t *next, Arena *next_arena, c
         if (!child) break;
 
         if (rand_unit() < params->mutation_rate) {
-            int n = rand_range(1, params->num_mutations);
+            int n = rand_range(1, max_mutations);
             for (int m = 0; m < n; m++) {
                 apply_one_mutation(child, params);
             }

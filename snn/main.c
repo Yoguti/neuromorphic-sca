@@ -55,7 +55,7 @@ int main(void) {
         Arena *inactive_arena = engine_get_arena_b();
         arena_reset(inactive_arena);
 
-        eons_do_epoch(population, next_generation, inactive_arena, &params);
+        eons_do_epoch(population, next_generation, inactive_arena, &params, gen);
 
         for (int i = 0; i < POPULATION_SIZE; i++) {
             population[i] = next_generation[i];

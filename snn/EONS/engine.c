@@ -69,6 +69,15 @@ uint8_t evaluate_network(snn_network_t *net, const int8_t *trace, size_t trace_l
             best_class = c;
         }
     }
+
+    // a silent network (no output ever fired) hasn't actually classified
+    // anything; returning 0 by default tie-break would let it silently
+    // collect credit whenever the true label happens to be 0. Signal "no
+    // decision" with the sentinel 255 so the caller can penalize it instead.
+    if (best_count == 0) {
+        return 255;
+    }
+
     return best_class;
 }
 
@@ -76,9 +85,9 @@ uint8_t evaluate_network(snn_network_t *net, const int8_t *trace, size_t trace_l
 void engine_evaluate_generation(candidate_t *pop, size_t population_size, const ascad_dataset_t *ds) {
     if (!pop || !ds || ds->num_traces == 0) return;
 
-    const float w_fidelity  = 0.80f;
-    const float w_diversity = 0.20f;
-    const float w_utility   = 0.00f;
+    const float w_fidelity  = 0.70f;
+    const float w_diversity = 0.15f;
+    const float w_utility   = 0.15f;
 
     const uint16_t THRESHOLD_SYNAPSES = 30;
     const uint16_t THRESHOLD_NEURONS  = 15;
@@ -137,13 +146,15 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size, const 
         }
         float fidelity = (active > 0) ? class_score_sum / active : 0.0f;
 
+        // utility: fraction of traces the network actually rendered a decision on
+        float utility = (float)valid / (float)ds->num_traces;
+
+        // diversity: how many distinct classes the network is capable of producing
         int classes_usadas = 0;
         for (int c = 0; c < SNN_NUM_HW_CLASSES; c++)
             if (pred[c] > 0) classes_usadas++;
         float raw_div = (float)classes_usadas / (float)SNN_NUM_HW_CLASSES;
-        float diversity = raw_div * fidelity;
-
-        float utility = (w_utility > 0.0f) ? (float)valid / (float)ds->num_traces : 0.0f;
+        float diversity = raw_div * utility;
 
         float penalty = 0.0f;
         if (fidelity > FIDELITY_THRESHOLD_FOR_PENALTY) {

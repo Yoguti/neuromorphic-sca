@@ -1,7 +1,4 @@
-
-// TESTBENCHES MADE WITH CLAUDE, not manually. These are not intended to be comprehensive unit tests
-// but rather quick checks of basic invariants and regression guards against past bugs. 
-
+// TESTBENCH FEITO COM O CLAUDE CODE PARA DEBUG:
 
 #include "testbenches.h"
 #include "network/network.h"
@@ -23,6 +20,7 @@
         printf("[PASSED]\n"); \
     } while (0)
 
+/* ---------------------------------------------------------- neuron / network (existing) */
 
 static void test_neuron_spike_and_refractory(void) {
     lif_neuron_t n;
@@ -250,6 +248,30 @@ static void test_evaluate_network_no_synapses_never_fires(void) {
     arena_free(a);
 }
 
+// Regression test for the 255-sentinel bug: evaluate_network used to always
+// return a value in [0, SNN_NUM_HW_CLASSES) via the default tie-break to
+// class 0, even when the network never spiked at all. This meant a totally
+// silent network "classified" every trace as class 0, silently collecting
+// credit whenever the true label happened to be 0, and engine.c's existing
+// `if (out != 255)` check (written in anticipation of this exact case) never
+// fired. This test pins that a silent network must return the 255 sentinel.
+static void test_evaluate_network_silent_network_returns_sentinel(void) {
+    Arena *a = arena_init(1024 * 1024);
+    snn_network_t *net = snn_create(a); // no synapses: net can never spike
+
+    size_t trace_len = 30;
+    int8_t *trace = malloc(sizeof(int8_t) * trace_len);
+    for (size_t i = 0; i < trace_len; i++) trace[i] = (i % 2 == 0) ? 1 : -1;
+
+    uint8_t result = evaluate_network(net, trace, trace_len);
+
+    assert(result == 255 && "silent network must return the 255 sentinel, not default to class 0");
+
+    free(trace);
+    arena_free(a);
+}
+
+
 static void test_engine_evaluate_generation_basic(void) {
     Arena *a = arena_init(1024 * 1024 * 4);
 
@@ -308,7 +330,7 @@ static void test_eons_do_epoch_preserves_population_size(void) {
     eons_params_t params = eons_default_params();
     params.population_size = N;
 
-    eons_do_epoch(current, next, arena_b, &params);
+    eons_do_epoch(current, next, arena_b, &params, 0);
 
     for (int i = 0; i < N; i++) {
         assert(next[i].network != NULL && "eons_do_epoch left a NULL network slot");
@@ -341,7 +363,7 @@ static void test_eons_do_epoch_elitism(void) {
     params.population_size = N;
     params.num_best = 1;
 
-    eons_do_epoch(current, next, arena_b, &params);
+    eons_do_epoch(current, next, arena_b, &params, 0);
 
     assert(next[0].network->num_synapses == best_synapse_count &&
            "elite clone in next[0] does not match best parent's synapse count");
@@ -350,7 +372,73 @@ static void test_eons_do_epoch_elitism(void) {
     arena_free(arena_b);
 }
 
-/* ---------------------------------------------------------- export (new) */
+// Regression/behavior test for mutation annealing: children produced at
+// generation 0 should drift further from their parent (more structural
+// change) on average than children produced at the final generation, given
+// identical parents and default annealed params (num_mutations=7 ->
+// num_mutations_min=2). annealed_num_mutations() is static to evolution.c,
+// so this measures the externally observable effect instead: synapse-count
+// delta from parent, averaged over many trials to smooth out the inherent
+// randomness of which mutation type gets picked each time.
+static void test_eons_do_epoch_mutation_annealing_reduces_drift(void) {
+    const int trials = 200;
+    long total_drift_gen0 = 0;
+    long total_drift_final = 0;
+
+    eons_params_t params = eons_default_params();
+    params.population_size = 1;
+    params.num_best = 0;
+    params.random_factor = 0.0f;
+    params.mutation_rate = 1.0f; // force mutation every trial so drift isn't drowned out by no-ops
+    int final_gen = params.num_generations - 1;
+
+    for (int trial = 0; trial < trials; trial++) {
+        Arena *arena_a = arena_init(64 * 1024);
+        Arena *arena_b = arena_init(64 * 1024);
+
+        candidate_t current[1];
+        candidate_t next[1];
+        current[0].network = snn_create(arena_a);
+        // seed a few synapses so delete_edge/node_param mutations have
+        // something to act on too, not just add_edge
+        snn_add_synapse(current[0].network, UP_INPUT_ID, SNN_NUM_INPUTS, 10);
+        snn_add_synapse(current[0].network, DOWN_INPUT_ID, SNN_NUM_INPUTS + 1, 10);
+        uint16_t parent_synapses = current[0].network->num_synapses;
+
+        eons_do_epoch(current, next, arena_b, &params, 0);
+        total_drift_gen0 += abs((int)next[0].network->num_synapses - (int)parent_synapses);
+
+        arena_free(arena_a);
+        arena_free(arena_b);
+    }
+
+    for (int trial = 0; trial < trials; trial++) {
+        Arena *arena_a = arena_init(64 * 1024);
+        Arena *arena_b = arena_init(64 * 1024);
+
+        candidate_t current[1];
+        candidate_t next[1];
+        current[0].network = snn_create(arena_a);
+        snn_add_synapse(current[0].network, UP_INPUT_ID, SNN_NUM_INPUTS, 10);
+        snn_add_synapse(current[0].network, DOWN_INPUT_ID, SNN_NUM_INPUTS + 1, 10);
+        uint16_t parent_synapses = current[0].network->num_synapses;
+
+        eons_do_epoch(current, next, arena_b, &params, final_gen);
+        total_drift_final += abs((int)next[0].network->num_synapses - (int)parent_synapses);
+
+        arena_free(arena_a);
+        arena_free(arena_b);
+    }
+
+    double avg_gen0  = (double)total_drift_gen0 / trials;
+    double avg_final = (double)total_drift_final / trials;
+
+    printf("\n    avg synapse drift @gen0=%.3f @final_gen=%.3f  ", avg_gen0, avg_final);
+    assert(avg_gen0 > avg_final &&
+           "generation 0 should drift more on average than the final generation under annealing");
+}
+
+
 
 static void test_export_network_csv_roundtrip(void) {
     Arena *a = arena_init(1024 * 1024);
@@ -406,10 +494,12 @@ void run_all_testbenches(void) {
     RUN_TEST(test_network_global_reset);
     RUN_TEST(test_evaluate_network_down_input_sign);
     RUN_TEST(test_evaluate_network_no_synapses_never_fires);
+    RUN_TEST(test_evaluate_network_silent_network_returns_sentinel);
     RUN_TEST(test_engine_evaluate_generation_basic);
     RUN_TEST(test_eons_do_epoch_preserves_population_size);
     RUN_TEST(test_eons_do_epoch_elitism);
+    RUN_TEST(test_eons_do_epoch_mutation_annealing_reduces_drift);
     RUN_TEST(test_export_network_csv_roundtrip);
 
-    printf("SUCCESS! All 14 tests passed.\n");
+    printf("SUCCESS! All 16 tests passed.\n");
 }
