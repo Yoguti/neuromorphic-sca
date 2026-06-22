@@ -153,11 +153,11 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size, const 
         float diversity = raw_div * utility;
 
         float penalty = 0.0f;
-        if (fidelity > FIDELITY_THRESHOLD_FOR_PENALTY) {
-            if (net->num_synapses > THRESHOLD_SYNAPSES)
-                penalty += (net->num_synapses - THRESHOLD_SYNAPSES) * PENALTY_SYNAPSE;
-            if (net->num_hidden > THRESHOLD_NEURONS)
-                penalty += (net->num_hidden - THRESHOLD_NEURONS) * PENALTY_NEURON;
+        if (net->num_synapses > THRESHOLD_SYNAPSES) {
+            penalty += (net->num_synapses - THRESHOLD_SYNAPSES) * PENALTY_SYNAPSE;
+        }
+        if (net->num_hidden > THRESHOLD_NEURONS) {
+            penalty += (net->num_hidden - THRESHOLD_NEURONS) * PENALTY_NEURON;
         }
 
         float raw = w_fidelity * fidelity

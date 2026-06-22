@@ -1,0 +1,117 @@
+Neuromorphic SCA: EONS Training
+Loading dataset from ../ATMEGA-AES-ASCAD_databases/ascad_modulated.h5...
+Dataset loaded! Traces: 6000, Length: 700
+Initializing engine...
+
+>>> SUCCESS: 4 checkpoints found! Injecting seeds...
+
+Generation 0 | Best Fitness: 0.493229 | Neurons (hidden): 17 | Synapses: 28
+Generation 1 | Best Fitness: 0.493229 | Neurons (hidden): 17 | Synapses: 28
+Generation 2 | Best Fitness: 0.493229 | Neurons (hidden): 17 | Synapses: 28
+Generation 3 | Best Fitness: 0.493229 | Neurons (hidden): 17 | Synapses: 28
+Generation 4 | Best Fitness: 0.493229 | Neurons (hidden): 17 | Synapses: 28
+Generation 5 | Best Fitness: 0.493229 | Neurons (hidden): 17 | Synapses: 28
+Generation 6 | Best Fitness: 0.493229 | Neurons (hidden): 17 | Synapses: 28
+Generation 7 | Best Fitness: 0.493229 | Neurons (hidden): 17 | Synapses: 28
+Generation 8 | Best Fitness: 0.493315 | Neurons (hidden): 20 | Synapses: 31
+Generation 9 | Best Fitness: 0.493315 | Neurons (hidden): 20 | Synapses: 31
+Generation 10 | Best Fitness: 0.493498 | Neurons (hidden): 13 | Synapses: 30
+Generation 11 | Best Fitness: 0.493498 | Neurons (hidden): 13 | Synapses: 30
+Generation 12 | Best Fitness: 0.493498 | Neurons (hidden): 13 | Synapses: 30
+Generation 13 | Best Fitness: 0.493498 | Neurons (hidden): 13 | Synapses: 30
+Generation 14 | Best Fitness: 0.493498 | Neurons (hidden): 13 | Synapses: 30
+Generation 15 | Best Fitness: 0.493498 | Neurons (hidden): 13 | Synapses: 30
+Generation 16 | Best Fitness: 0.493498 | Neurons (hidden): 13 | Synapses: 30
+Generation 17 | Best Fitness: 0.494186 | Neurons (hidden): 15 | Synapses: 29
+Generation 18 | Best Fitness: 0.494186 | Neurons (hidden): 15 | Synapses: 29
+Generation 19 | Best Fitness: 0.494186 | Neurons (hidden): 15 | Synapses: 29
+Generation 20 | Best Fitness: 0.494186 | Neurons (hidden): 15 | Synapses: 29
+Generation 21 | Best Fitness: 0.494186 | Neurons (hidden): 15 | Synapses: 29
+Generation 22 | Best Fitness: 0.494186 | Neurons (hidden): 15 | Synapses: 29
+Generation 23 | Best Fitness: 0.494186 | Neurons (hidden): 15 | Synapses: 29
+Generation 24 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 25 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 26 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 27 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 28 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 29 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 30 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Exported network: 35 neurons -> network-csvs/seed_1_neurons.csv, 40 synapses -> network-csvs/seed_1_synapses.csv
+  [!] Checkpoint saved/overwritten successfully: network-csvs/seed_1
+Generation 31 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 32 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 33 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 34 | Best Fitness: 0.509883 | Neurons (hidden): 26 | Synapses: 40
+Generation 35 | Best Fitness: 0.509891 | Neurons (hidden): 26 | Synapses: 42
+Generation 36 | Best Fitness: 0.509891 | Neurons (hidden): 26 | Synapses: 42
+Generation 37 | Best Fitness: 0.509891 | Neurons (hidden): 26 | Synapses: 42
+Generation 38 | Best Fitness: 0.509891 | Neurons (hidden): 26 | Synapses: 42
+Generation 39 | Best Fitness: 0.509891 | Neurons (hidden): 26 | Synapses: 42
+Generation 40 | Best Fitness: 0.509914 | Neurons (hidden): 28 | Synapses: 43
+Generation 41 | Best Fitness: 0.509919 | Neurons (hidden): 25 | Synapses: 43
+Generation 42 | Best Fitness: 0.509919 | Neurons (hidden): 25 | Synapses: 43
+Generation 43 | Best Fitness: 0.509919 | Neurons (hidden): 25 | Synapses: 43
+Generation 44 | Best Fitness: 0.509919 | Neurons (hidden): 25 | Synapses: 43
+Generation 45 | Best Fitness: 0.509919 | Neurons (hidden): 25 | Synapses: 43
+Generation 46 | Best Fitness: 0.509919 | Neurons (hidden): 25 | Synapses: 43
+Generation 47 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 48 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 49 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 50 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 51 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 52 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 53 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 54 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 55 | Best Fitness: 0.509923 | Neurons (hidden): 31 | Synapses: 44
+Generation 56 | Best Fitness: 0.509957 | Neurons (hidden): 27 | Synapses: 43
+Generation 57 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Generation 58 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Generation 59 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Generation 60 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Exported network: 40 neurons -> network-csvs/seed_2_neurons.csv, 45 synapses -> network-csvs/seed_2_synapses.csv
+  [!] Checkpoint saved/overwritten successfully: network-csvs/seed_2
+Generation 61 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Generation 62 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Generation 63 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Generation 64 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Generation 65 | Best Fitness: 0.509962 | Neurons (hidden): 31 | Synapses: 45
+Generation 66 | Best Fitness: 0.509979 | Neurons (hidden): 34 | Synapses: 48
+Generation 67 | Best Fitness: 0.509979 | Neurons (hidden): 34 | Synapses: 48
+Generation 68 | Best Fitness: 0.509979 | Neurons (hidden): 34 | Synapses: 48
+Generation 69 | Best Fitness: 0.509979 | Neurons (hidden): 34 | Synapses: 48
+Generation 70 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 71 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 72 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 73 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 74 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 75 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 76 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 77 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 78 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 79 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 80 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 81 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 82 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 83 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 84 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 85 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 86 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 87 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 88 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 89 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 90 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Exported network: 43 neurons -> network-csvs/seed_3_neurons.csv, 46 synapses -> network-csvs/seed_3_synapses.csv
+  [!] Checkpoint saved/overwritten successfully: network-csvs/seed_3
+Generation 91 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 92 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 93 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 94 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 95 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 96 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 97 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 98 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+Generation 99 | Best Fitness: 0.509999 | Neurons (hidden): 34 | Synapses: 46
+
+Evolution complete!
+Final best fitness: 0.509999 (neurons=34, synapses=46)
+Exported network: 43 neurons -> network-csvs/best_network_neurons.csv, 46 synapses -> network-csvs/best_network_synapses.csv

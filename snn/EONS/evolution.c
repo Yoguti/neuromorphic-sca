@@ -6,12 +6,10 @@ eons_params_t eons_default_params(void)
 {
     eons_params_t p;
 
-    p.crossover_rate   = 0.0f;
+    p.crossover_rate   = 0.50f;
     p.merge_rate       = 0.0f;
-    p.mutation_rate    = 0.75f;
-    // mutation count anneals linearly from num_mutations (gen 0) down to
-    // num_mutations_min (final generation): broad exploration early,
-    // conservative refinement once the search has found useful structure.
+    p.mutation_rate    = 0.70f; // mutation count anneals linearly from num_mutations (gen 0) down to num_mutations_min (final generation)
+    // broad exploration early, conservative once the search has found useful structure.
     p.num_mutations     = 7;
     p.num_mutations_min = 2;
 
