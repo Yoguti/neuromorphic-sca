@@ -90,8 +90,6 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size, const 
     const float PENALTY_SYNAPSE = 0.008f; 
     const float PENALTY_NEURON  = 0.020f;
 
-    const float FIDELITY_THRESHOLD_FOR_PENALTY = 0.30f;
-
     #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < population_size; i++) {
         snn_network_t *net = pop[i].network;
