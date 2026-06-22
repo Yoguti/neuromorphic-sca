@@ -31,16 +31,18 @@ int main(void) {
     eons_params_t params = eons_default_params();
     params.num_generations = 100; 
 
-    char seed_names[3][128] = {
+
+    char seed_names[4][128] = {
         "network-csvs/seed_1",
         "network-csvs/seed_2",
-        "network-csvs/seed_3"
+        "network-csvs/seed_3",
+        "network-csvs/best_network"
     };
     
-    snn_network_t *seeds[3] = {NULL, NULL, NULL};
+    snn_network_t *seeds[4] = {NULL, NULL, NULL, NULL};
     int num_seeds_loaded = 0;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) { // Alterado de 3 para 4
         seeds[i] = import_network_csv(engine_get_arena_a(), seed_names[i]);
         if (seeds[i]) num_seeds_loaded++;
     }
@@ -50,7 +52,7 @@ int main(void) {
         int clones_per_seed = (POPULATION_SIZE / 10) / num_seeds_loaded; 
         int pop_idx = 0;
         
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) { // Alterado de 3 para 4
             if (seeds[i]) {
                 for (int c = 0; c < clones_per_seed; c++) {
                     population[pop_idx].network = snn_clone_into(engine_get_arena_a(), seeds[i]);
