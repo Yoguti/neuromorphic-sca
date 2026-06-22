@@ -1,6 +1,9 @@
 #ifndef TESTBENCHES_H
 #define TESTBENCHES_H
 
-void run_all_testbenches(void);
+#include "EONS/evolution.h"
+#include "libs/dataset.h"
 
-#endif // TESTBENCHES_H
+void run_test(void);
+
+#endif /* TESTBENCHES_H */

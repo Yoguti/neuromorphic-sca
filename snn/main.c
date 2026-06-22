@@ -11,7 +11,7 @@ int main(void) {
     srand(time(NULL));
     printf("Neuromorphic SCA: EONS Training\n");
 
-    const char *h5_path = "../ATMEGA-AES-ASCAD_databases/ascad_modulated.h5";
+    const char *h5_path = "../modulated_dataset/ascad_modulated.h5";
     size_t num_traces_to_load = 6000;
 
     printf("Loading dataset from %s...\n", h5_path);
@@ -29,7 +29,23 @@ int main(void) {
 
     candidate_t *population = engine_get_population();
     eons_params_t params = eons_default_params();
-    params.num_generations = 100; 
+    params.crossover_rate    = 0.0841f;
+    params.merge_rate        = 0.0717f;
+    params.mutation_rate     = 0.6852f;
+    params.num_mutations     = 6;
+    params.num_mutations_min = 4;
+    params.add_node_rate     = 0.1515f;
+    params.delete_node_rate  = 0.0701f;
+    params.add_edge_rate     = 0.1980f;
+    params.delete_edge_rate  = 0.0658f;
+    params.node_param_rate   = 0.2211f;
+    params.edge_param_rate   = 0.2935f;
+    params.tournament_size   = 5;
+    params.tournament_p      = 0.6019f;
+    params.random_factor     = 0.0064f;
+    params.num_best          = 1;
+    
+    params.num_generations = 200;
 
 
     char seed_names[4][128] = {

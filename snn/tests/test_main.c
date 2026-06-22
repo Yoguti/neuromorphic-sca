@@ -1,6 +1,9 @@
 #include "testbenches.h"
+#include "libs/dataset.h"
+#include "EONS/engine.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 int main(void) {
-    run_all_testbenches();
     return 0;
 }
