@@ -21,7 +21,7 @@ __pycache__/
 
 data-prep/modulate_data
 data-prep/benchmark_conversion
-
+/network-csvs/
 snn/test.c
 .vscode/
 *.swp
