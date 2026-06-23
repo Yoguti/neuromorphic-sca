@@ -28,3 +28,13 @@ snn/test.c
 .DS_Store
 snn_engine
 snn_tests
+
+snn/key_recovery.png
+snn/trace_rank.png
+
+snn/network-csvs/seed_1_neurons.csv
+snn/network-csvs/seed_1_synapses.csv
+snn/network-csvs/seed_2_neurons.csv
+snn/network-csvs/seed_2_synapses.csv
+snn/network-csvs/seed_3_neurons.csv
+snn/network-csvs/seed_3_synapses.csv

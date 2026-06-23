@@ -81,14 +81,17 @@ uint8_t evaluate_network(snn_network_t *net, const int8_t *trace, size_t trace_l
 void engine_evaluate_generation(candidate_t *pop, size_t population_size, const ascad_dataset_t *ds) {
     if (!pop || !ds || ds->num_traces == 0) return;
 
-    const float w_fidelity  = 0.70f;
-    const float w_diversity = 0.15f;
-    const float w_utility   = 0.15f;
+    const float w_accuracy  = 0.60f;
+    const float w_diversity = 0.20f;
+    const float w_utility   = 0.20f;
 
     const uint16_t THRESHOLD_SYNAPSES = 30;
     const uint16_t THRESHOLD_NEURONS  = 15;
     const float PENALTY_SYNAPSE = 0.008f; 
     const float PENALTY_NEURON  = 0.020f;
+
+    // Maximum entropy for 9 classes = log2(9) ≈ 3.17
+    const float MAX_ENTROPY = logf((float)SNN_NUM_HW_CLASSES);
 
     #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < population_size; i++) {
@@ -98,10 +101,9 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size, const 
             continue;
         }
 
-        uint32_t gt[SNN_NUM_HW_CLASSES]   = {0};
-        uint32_t pred[SNN_NUM_HW_CLASSES] = {0};
-        uint32_t tp[SNN_NUM_HW_CLASSES]   = {0};
-        uint32_t err_sum[SNN_NUM_HW_CLASSES] = {0};
+        uint32_t gt[SNN_NUM_HW_CLASSES]   = {0};  // ground truth count per class
+        uint32_t pred[SNN_NUM_HW_CLASSES] = {0};  // prediction count per class
+        uint32_t tp[SNN_NUM_HW_CLASSES]   = {0};  // true positives per class
         uint32_t valid = 0;
 
         for (size_t t = 0; t < ds->num_traces; t++) {
@@ -114,42 +116,42 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size, const 
             if (out != 255) {
                 pred[out]++;
                 valid++;
-                err_sum[label] += abs((int)label - (int)out);
                 if (out == label) tp[label]++;
-            } else {
-                err_sum[label] += 8;
             }
         }
-
 
         if (valid == 0) {
             pop[i].fitness_score = 0.0f;
             continue;
         }
 
-        float class_score_sum = 0.0f;
-        int active = 0;
+        // each class contributes equally regardless of how many samples preventing the network from ignoring rare classes
+        // (HW 0, 1, 7, 8) in favor of the common ones (HW 3, 4, 5).
+        float recall_sum = 0.0f;
+        int active_classes = 0;
         for (int c = 0; c < SNN_NUM_HW_CLASSES; c++) {
             if (gt[c] > 0) {
-                float recall = (float)tp[c] / (float)gt[c];
-                float mae = (float)err_sum[c] / (float)gt[c];
-                float dist_score = (8.0f - mae) / 8.0f;
-                class_score_sum += 0.70f * recall + 0.30f * dist_score;
-                active++;
+                recall_sum += (float)tp[c] / (float)gt[c];
+                active_classes++;
             }
         }
-        float fidelity = (active > 0) ? class_score_sum / active : 0.0f;
+        float accuracy = (active_classes > 0) ? recall_sum / active_classes : 0.0f;
 
-        // utility: fraction of traces the network actually rendered a decision on
+        // normalized Shannon entropy of predictions
+        // Measures how spread out the predictions are across classes.
+        float entropy = 0.0f;
+        for (int c = 0; c < SNN_NUM_HW_CLASSES; c++) {
+            if (pred[c] > 0) {
+                float p = (float)pred[c] / (float)valid;
+                entropy -= p * logf(p);
+            }
+        }
+        float diversity = entropy / MAX_ENTROPY;  // normalized to [0, 1]
+
+        // fraction of traces that produced a decision
         float utility = (float)valid / (float)ds->num_traces;
 
-        // diversity: how many distinct classes the network is capable of producing
-        int classes_usadas = 0;
-        for (int c = 0; c < SNN_NUM_HW_CLASSES; c++)
-            if (pred[c] > 0) classes_usadas++;
-        float raw_div = (float)classes_usadas / (float)SNN_NUM_HW_CLASSES;
-        float diversity = raw_div * utility;
-
+        // complexity penalty
         float penalty = 0.0f;
         if (net->num_synapses > THRESHOLD_SYNAPSES) {
             penalty += (net->num_synapses - THRESHOLD_SYNAPSES) * PENALTY_SYNAPSE;
@@ -158,10 +160,10 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size, const 
             penalty += (net->num_hidden - THRESHOLD_NEURONS) * PENALTY_NEURON;
         }
 
-        float raw = w_fidelity * fidelity
-                  + w_diversity * diversity
-                  + w_utility * utility
-                  - penalty;
+        float raw = w_accuracy  * accuracy
+                   + w_diversity * diversity
+                   + w_utility   * utility
+                   - penalty;
 
         pop[i].fitness_score = (raw > 0.0f) ? raw : 0.0f;
     }

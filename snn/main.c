@@ -16,7 +16,8 @@ int main(void) {
 
     printf("Loading dataset from %s...\n", h5_path);
 
-    ascad_dataset_t *ds = dataset_load(h5_path, num_traces_to_load);
+
+    ascad_dataset_t *ds = dataset_load(h5_path, num_traces_to_load, false);
     if (!ds) {
         printf("Error: Could not load dataset.\n");
         return 1;
