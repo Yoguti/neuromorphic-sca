@@ -8,8 +8,7 @@ eons_params_t eons_default_params(void)
 
     p.crossover_rate   = 0.50f;
     p.merge_rate       = 0.0f;
-    p.mutation_rate    = 0.70f; // mutation count anneals linearly from num_mutations (gen 0) down to num_mutations_min (final generation)
-    // broad exploration early, conservative once the search has found useful structure.
+    p.mutation_rate    = 0.70f;
     p.num_mutations     = 7;
     p.num_mutations_min = 2;
 
@@ -50,8 +49,8 @@ static int annealed_num_mutations(const eons_params_t *params, int generation) {
     float interpolated = (float)params->num_mutations +
                           t * (float)(params->num_mutations_min - params->num_mutations);
 
-    int result = (int)(interpolated + 0.5f); // round to nearest
-    if (result < 1) result = 1; // at least one mutation if mutation_rate triggers at all
+    int result = (int)(interpolated + 0.5f);
+    if (result < 1) result = 1;
     return result;
 }
 
@@ -153,6 +152,43 @@ static void apply_one_mutation(snn_network_t *net, const eons_params_t *p) {
     }
 }
 
+static void apply_crossover(snn_network_t *child, const snn_network_t *donor) {
+    if (donor->num_hidden == 0) return;
+
+    int max_inject = donor->num_hidden < 3 ? donor->num_hidden : 3;
+    int num_to_inject = rand_range(1, max_inject);
+
+    for (int i = 0; i < num_to_inject; i++) {
+        int donor_hidden_local = rand_range(0, donor->num_hidden - 1);
+        uint16_t donor_node_id = SNN_NUM_INPUTS + donor->num_outputs + (uint16_t)donor_hidden_local;
+        uint16_t donor_lif_idx = donor->num_outputs + (uint16_t)donor_hidden_local;
+
+        uint16_t new_node_id = snn_add_hidden(child);
+        if (new_node_id == UINT16_MAX) return;
+
+        uint16_t new_lif_idx = child->num_outputs + (child->num_hidden - 1);
+        child->nodes[new_lif_idx] = donor->nodes[donor_lif_idx];
+        child->nodes[new_lif_idx].membrane_potential = child->nodes[new_lif_idx].resting_potential;
+        child->nodes[new_lif_idx].has_fired = 0;
+        child->nodes[new_lif_idx].refractory_counter = 0;
+
+        uint16_t boundary = SNN_NUM_INPUTS + donor->num_outputs;
+
+        for (uint16_t s = 0; s < donor->num_synapses; s++) {
+            uint16_t src = donor->synapses[s].source_node;
+            uint16_t tgt = donor->synapses[s].target_node;
+            int8_t   w   = donor->synapses[s].weight;
+
+            if (tgt == donor_node_id && src < boundary) {
+                snn_add_synapse(child, src, new_node_id, w);
+            }
+            if (src == donor_node_id && tgt < boundary) {
+                snn_add_synapse(child, new_node_id, tgt, w);
+            }
+        }
+    }
+}
+
 void eons_do_epoch(candidate_t *current, candidate_t *next, Arena *next_arena, const eons_params_t *params, int generation) {
     int pop_size = params->population_size;
     int max_mutations = annealed_num_mutations(params, generation);
@@ -190,6 +226,11 @@ void eons_do_epoch(candidate_t *current, candidate_t *next, Arena *next_arena, c
         int parent_idx = tournament_select(current, pop_size, params);
         snn_network_t *child = snn_clone_into(next_arena, current[parent_idx].network);
         if (!child) break;
+
+        if (rand_unit() < params->crossover_rate) {
+            int donor_idx = tournament_select(current, pop_size, params);
+            apply_crossover(child, current[donor_idx].network);
+        }
 
         if (rand_unit() < params->mutation_rate) {
             int n = rand_range(1, max_mutations);

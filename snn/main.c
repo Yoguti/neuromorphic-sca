@@ -12,7 +12,7 @@ int main(void) {
     printf("Neuromorphic SCA: EONS Training\n");
 
     const char *h5_path = "../modulated_dataset/ascad_modulated.h5";
-    size_t num_traces_to_load = 6000;
+    size_t num_traces_to_load = 3000;
 
     printf("Loading dataset from %s...\n", h5_path);
 
@@ -43,10 +43,10 @@ int main(void) {
     params.edge_param_rate   = 0.2935f;
     params.tournament_size   = 5;
     params.tournament_p      = 0.6019f;
-    params.random_factor     = 0.0064f;
-    params.num_best          = 1;
+    params.random_factor     = 0.0264f;
+    params.num_best          = 3;
     
-    params.num_generations = 200;
+    params.num_generations = 40;
 
 
     char seed_names[4][128] = {

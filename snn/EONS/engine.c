@@ -85,8 +85,8 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size, const 
     const float w_diversity = 0.20f;
     const float w_utility   = 0.20f;
 
-    const uint16_t THRESHOLD_SYNAPSES = 30;
-    const uint16_t THRESHOLD_NEURONS  = 15;
+    const uint16_t THRESHOLD_SYNAPSES = 200;
+    const uint16_t THRESHOLD_NEURONS  = 45;
     const float PENALTY_SYNAPSE = 0.008f; 
     const float PENALTY_NEURON  = 0.020f;
 
