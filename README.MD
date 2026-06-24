@@ -1,138 +1,159 @@
+Here is a revised version of the README. I kept the technical structure and methodology exactly the same, but loosened up the phrasing, varied the sentence lengths, and removed some of the overly "perfect" transitional filler that gives AI-generated text away. It should sound much more like a developer documenting their own engine.
+
+---
+
 # Embedded Spiking Neural Network for Side-Channel Analysis
 
-An SNN modeled using Evolutionary Optimization for Neuromorphic Systems (EONS) and trained on the ASCAD dataset.
+SNN trained on AES_HD using Evolutionary Optimization for Neuromorphic Systems (EONS).
 
-This project explores the use of event-driven Spiking Neural Networks (SNNs) for Side-Channel Analysis (SCA) of AES power traces. The objective is to train an optimized neuromorphic model capable of classifying side-channel leakage to recover secret cryptographic keys. 
+## The Problem
 
-**HW Classes:**
-During cryptographic operations, microcontrollers leak power that correlates with the number of active bits (`1`s) being processed, a metric known as the **Hamming Weight (HW)**. Since AES processes 8-bit bytes, there are **9 possible Hamming Weight classes (HW 0 through HW 8)**. 
+Unprotected AES leaks through EM radiation during the final round. The Hamming Distance between consecutive register states (0–8) correlates with power consumption. Predict HD correctly, recover the key.
 
-The SNN acts as a classifier. It takes a sequence of power consumption spikes as input and predicts which of the 9 HW classes the hidden intermediate state belongs to. By correctly predicting the Hamming Weight of a targeted AES operation (specifically, the S-Box substitution of a known plaintext byte combined with a secret key byte), the network effectively discovers the secret key.
+The network classifies 20 power features into 9 HD classes. Small and efficient enough for FPGA deployment.
 
-The project also focuses on developing a hardware-efficient SNN architecture suitable for embedded implementation in VHDL and deployment on FPGA platforms.
+## Workflow
 
-The planned workflow is:
-
-1. Convert AES power traces into spikes and calculate the corresponding Hamming Weight labels.
-2. Use EONS to evolve network topologies and parameters.
-3. Evaluate candidate networks using the simulation engine.
-4. Generate a hardware description of the best network for FPGA implementation.
+1. Extract high-SNR POIs from traces, label by HD.
+2. Z-score normalize amplitudes.
+3. Evolve SNN with EONS.
+4. Evaluate in C simulator.
+5. Export to HDL.
 
 ## Dataset
 
-Power consumption traces collected from an 8-bit ATmega8515 microcontroller while executing the Advanced Encryption Standard (AES-128) algorithm alongside first-order Boolean masking. The selected data uses a single fixed secret key through all traces.
+AES_HD: 100k EM traces from an unprotected AES-128 core on a Xilinx Virtex-5 FPGA (SASEBO GII). Parallel architecture, 11 cycles per encryption. Near-field probe over decoupling cap on power line.
 
-![Project Image](https://raw.githubusercontent.com/Yoguti/neuromorphic-sca/master/images/1.png)
+Leakage target (last-round register write):
+
+```
+Y(C_i1, C_i2, k*) = Sbox_inv[C_i1 ⊕ k*] ⊕ C_i2
+```
+
+Where C_i1 and C_i2 are ciphertext bytes linked by inverse ShiftRows (i1=12, i2=8). No masking, clean signal.
+
+Available: [https://github.com/AESHD/AES_HD_Dataset](https://github.com/AESHD/AES_HD_Dataset)
 
 ## Preparation
 
-Power traces were converted into event-driven spike trains using an asynchronous delta modulation (ADM) encoding scheme similar to the method described in *An Asynchronous Delta Modulator for Spike Encoding in Event-Driven Brain-Machine Interface*. Positive and negative spikes were generated whenever the difference between the input signal and an adaptive reference exceeded a predefined threshold.
+**SNR-based POI selection + z-score standardization.**
 
-![Project Image](https://raw.githubusercontent.com/Yoguti/neuromorphic-sca/master/images/2.png)
+1. Compute SNR per time index across all 9 HD classes.
+2. Take top-20 POIs (reduces 1250 → 20 features).
+3. Z-score normalize each column independently (stats from profiling set only).
+4. Undersample profiling set so all 9 classes have equal counts.
+5. Export to HDF5: float32 features + uint8 labels.
+
+Output: 20-dim float32 vector (z-scored power amplitudes).
 
 ## Environment
 
-The Python environment for data preparation is stored in `data-prep/.venv/`, which is excluded from version control.
+The Python environment for data prep is kept in `data-prep/.venv/` (excluded from git).
 
-To recreate the environment:
+To spin it up:
 
 ```bash
 cd data-prep
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
 ```
 
 ## Engine
 
-### Leaky Integrate-and-Fire Neurons
+## Engine: LIF Neurons
 
-![Project Image](https://raw.githubusercontent.com/Yoguti/neuromorphic-sca/master/images/3.png)
-
-The engine uses the Leaky Integrate-and-Fire (LIF) neuron model.
-
-A LIF neuron accumulates incoming spikes in its membrane potential. Over time, this potential naturally decays toward a resting value (the leak effect). When the membrane potential exceeds a threshold, the neuron emits a spike and resets its state.
-
-The neuron state is represented by the following structure:
+Leaky Integrate-and-Fire. Membrane potential accumulates input, decays toward rest, fires at threshold, resets and refractory.
 
 ```c
 typedef struct {
     int16_t membrane_potential;
     int16_t threshold;
-
-    int8_t leak_factor;
-
+    int8_t  leak_factor;
     int16_t reset_potential;
     int16_t resting_potential;
-
     uint8_t has_fired;
-
     uint8_t refractory_period;
     uint8_t refractory_counter;
 } lif_neuron_t;
 ```
 
-### Synapses
+## Input Encoding
 
-Communication between neurons is performed through weighted synapses.
+Spatial encoding: each of 20 POIs maps to a dedicated input neuron. Feature identity by position, not timing.
+
+Synaptic drive from inputs:
+```c
+drive = (int32_t)((float)syn->weight * net->input_values[src]);
+```
+
+Amplitude-weighted multiplication. Hidden/output neurons deliver binary drive on spike.
+
+Inference: present trace for 20 ticks with input held steady. Readout accumulates spike counts.
+
+## Synapses
 
 ```c
 typedef struct {
     uint16_t source_node;
     uint16_t target_node;
-    int8_t weight;
+    int8_t   weight;
 } synapse_t;
 ```
 
-Each synapse connects a source neuron to a target neuron and determines how strongly a spike influences the target neuron's membrane potential.
+## Simulation Step
+
+Each tick:
+1. Load z-scored POI amplitudes to input neurons.
+2. Compute input drive: weight × input_value (float).
+3. Compute hidden/output drive: weight × has_fired (binary).
+4. Add accumulated drives to membrane potentials.
+5. Fire neurons at threshold, enter refractory.
+6. Clear accumulators.
+
+After 20 ticks: output class = neuron with most spikes.
+
+## Memory Management
+
+Double-buffered arena allocator. Generations swap between active/inactive buffers. Old population wiped in O(1) by resetting pointer. Avoids malloc/free overhead.
+
+## Fitness Evaluation
 
 ```c
-if (source_fired) {
-    uint16_t tgt_idx = SNN_NODE_TO_LIF(tgt);
-    net->accumulated_inputs[tgt_idx] += syn->weight * source_fired;
-}
+float accuracy     = (float)correct / (float)batch;
+float size_penalty = (float)(net->num_synapses + SNN_LIF_COUNT(net)) * alpha;
+pop[i].fitness_score = accuracy - size_penalty;
 ```
 
-### Simulation Step
+Evaluate on 2k-trace minibatches (not full 84k). Stochastic variance helps escape local optima. Random guessing baseline: 1/9 ≈ 0.111.
 
-Network execution is performed in discrete time steps.
+## Key Recovery
 
-For each simulation tick:
-
-1. Input spikes are propagated through active synapses.
-2. Synaptic weights are accumulated at the target neurons.
-3. Each neuron updates its membrane potential.
-4. Neurons that reach the firing threshold emit a spike.
-5. Temporary accumulators are cleared for the next tick.
-
-### Memory Management (Double-Buffered Arena)
-
-Given the high throughput required by the evolutionary algorithm, standard dynamic memory allocation (`malloc`/`free`) introduces unacceptable overhead and fragmentation. The engine implements a double-buffered arena allocator.
-
-Generations alternate between an active and inactive arena, allowing entire populations of networks to be wiped from memory in `O(1)` time through a single pointer reset at the end of an epoch.
-
-### Fitness Evaluation & Escaping Local Optima
-
-The ASCAD dataset is statistically imbalanced, with the Hamming Weight 4 class representing approximately 28.7% of the traces. During evolution, networks tend to fall into a local optimum, minimizing topology (e.g., 1 synapse, 0 hidden neurons) and exclusively predicting the majority class to maximize accuracy while avoiding complexity penalties.
-
-To escape this gravity well, the fitness evaluation implements a diversity stepping-stone mechanic. The evaluation metric provides a calculated numerical bonus for networks that predict distinct classes, creating a mathematical gradient that incentivizes the addition of synapses and neurons.
-
-```c
-// Fitness prioritizes accuracy but rewards networks that predict multiple classes
-pop[i].fitness_score = accuracy + (unique_classes_predicted * 0.005f); 
+Last-round inverse S-Box:
+```
+Intermediate_State = SBox_inv[Ciphertext_byte ⊕ Secret_Key_byte]
 ```
 
-### Classifying the Hamming Weight is enough to break AES
+Known ciphertext + predicted HD → enumerate 256 key byte hypotheses. Calculate expected HD per guess, compare to network output. Correct hypothesis matches across many traces.
 
-Through the EONS evolutionary process, the engine successfully produces highly optimized Spiking Neural Networks that map asynchronous UP and DOWN power spikes to the correct Hamming Weight class of the cryptographic operation.
+16 bytes = 128-bit key.
 
-![Evolved SNN Architecture](https://raw.githubusercontent.com/Yoguti/neuromorphic-sca/master/images/image_snn_network.png)
+---
 
-In Side-Channel Analysis (SCA), the goal is to **extract the fixed Master Key hidden inside the hardware**
+## References and Inspirations
 
-During the first round of AES, the chip performs a highly nonlinear operation using a public look-up table called the S-Box:
-`Intermediate_State = SBox(Plaintext ⊕ Secret_Key)`
+**Evolutionary Optimization for Neuromorphic Systems (EONS)**
+Catherine D. Schuman, J. Parker Mitchell, Robert M. Patton, Thomas E. Potok, James S. Plank.
+*Evolutionary Optimization for Neuromorphic Systems.*
+NICE '20, Heidelberg, Germany, 2020.
+[https://doi.org/10.1145/3381755.3381758](https://doi.org/10.1145/3381755.3381758)
 
-While the chip calculates the `Intermediate_State`, it leaks power. The evolved SNN analyzes this power trace and accurately predicts the Hamming Weight.
+The genetic algorithm in this engine—including the structural mutation operators, tournament selection, and the size-penalized fitness function—is heavily based on the EONS framework described here.
 
-By knowing the `Plaintext` and the Hamming Weight of the `Intermediate_State`, it becomes possible to guess all 256 probable values for a single byte of the key, calculate the expected Hamming Weight *would* be for each guess, and compares it against the SNN's real-world prediction. The key guess that perfectly aligns with the SNN's output reveals the secret key byte. By repeating this process for all 16 bytes, the entire 128-bit AES master key is completely recovered.
+**Make Some Noise: Unleashing the Power of Convolutional Neural Networks for Profiled Side-Channel Analysis**
+Jaehun Kim, Stjepan Picek, Annelie Heuser, Shivam Bhasin, Alan Hanjalic.
+*IACR Transactions on Cryptographic Hardware and Embedded Systems*, 2019(3), 148–179.
+[https://doi.org/10.13154/tches.v2019.i3.148-179](https://doi.org/10.13154/tches.v2019.i3.148-179)
+
+This paper established AES_HD as a standard benchmark and introduced the CNN architecture typically used to attack it. The dataset parsing and leakage models used in this project follow their conventions.

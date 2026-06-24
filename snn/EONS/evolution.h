@@ -7,8 +7,8 @@ typedef struct {
     float crossover_rate;
     float merge_rate;
     float mutation_rate;
-    int   num_mutations;        // mutation count ceiling at generation 0 (start of annealing)
-    int   num_mutations_min;    // mutation count floor reached by num_generations (end of annealing);
+    int   num_mutations;
+    int   num_mutations_min;
     float add_node_rate;
     float delete_node_rate;
     float add_edge_rate;
@@ -25,11 +25,6 @@ typedef struct {
 
 eons_params_t eons_default_params(void);
 
-// generation is the current generation index (0-based); used to linearly
-// anneal the mutation count from params->num_mutations down to
-// params->num_mutations_min over params->num_generations, so early
-// generations explore more broadly and later generations refine more
-// conservatively.
 void eons_do_epoch(
     candidate_t *current,
     candidate_t *next,

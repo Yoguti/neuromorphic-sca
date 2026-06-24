@@ -2,169 +2,108 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
-#define ARENA_CAPACITY (1024 * 1024 * 32) // 32 Megabytes per arena
+#define ARENA_CAPACITY (1024 * 1024 * 64)
+#define INFERENCE_TICKS 20
+#define READOUT_ALPHA   1.0f
 
-static Arena *arena_A = NULL;
-static Arena *arena_B = NULL;
-static Arena *active_arena = NULL;
+static Arena *arena_A      = NULL;
+static Arena *arena_B      = NULL;
+static Arena *active_arena   = NULL;
 static Arena *inactive_arena = NULL;
-
 static candidate_t population[POPULATION_SIZE];
 
 void engine_init(void) {
     arena_A = arena_init(ARENA_CAPACITY);
     arena_B = arena_init(ARENA_CAPACITY);
-
-    if (!arena_A || !arena_B) {
-        printf("Fatal Error: Failed to initialize Arenas.\n");
-        return;
-    }
-
-    active_arena = arena_A;
+    if (!arena_A || !arena_B) { printf("Fatal: arena init failed\n"); return; }
+    active_arena   = arena_A;
     inactive_arena = arena_B;
-
     for (int i = 0; i < POPULATION_SIZE; i++) {
-        snn_network_t *net = snn_create(active_arena);
-        population[i].network = net;
+        population[i].network       = snn_create(active_arena);
         population[i].fitness_score = 0.0f;
     }
 }
 
 candidate_t* engine_get_population(void) { return population; }
-Arena* engine_get_arena_a(void) { return active_arena; }
-Arena* engine_get_arena_b(void) { return inactive_arena; }
+Arena* engine_get_arena_a(void)          { return active_arena; }
+Arena* engine_get_arena_b(void)          { return inactive_arena; }
 
 void engine_swap_arenas(void) {
-    Arena *temp = active_arena;
-    active_arena = inactive_arena;
-    inactive_arena = temp;
+    Arena *tmp   = active_arena;
+    active_arena   = inactive_arena;
+    inactive_arena = tmp;
 }
 
-uint8_t evaluate_network(snn_network_t *net, const int8_t *trace, size_t trace_length) {
+static void run_inference(snn_network_t *net, const float *trace, size_t trace_length,
+                          uint32_t spike_counts[SNN_NUM_OUTPUTS]) {
     snn_reset(net);
-    
-    uint32_t spike_counts[SNN_NUM_OUTPUTS] = {0};
+    for (int c = 0; c < SNN_NUM_OUTPUTS; c++) spike_counts[c] = 0;
 
-    for (size_t t = 0; t < trace_length; t++) {
-        int8_t sample = trace[t];
+    size_t n = trace_length < SNN_NUM_POIS ? trace_length : SNN_NUM_POIS;
 
-        net->input_spikes[UP_INPUT_ID]   = (sample == 1)  ? 1 : 0;
-        net->input_spikes[DOWN_INPUT_ID] = (sample == -1) ? 1 : 0;
-
+    for (int tick = 0; tick < INFERENCE_TICKS; tick++) {
+        for (size_t p = 0; p < n; p++)
+            net->input_values[p] = trace[p];
         snn_tick(net);
-
-        for(uint16_t out = 0; out < SNN_NUM_OUTPUTS; out++) {
-            if(net->nodes[out].has_fired) {
-                spike_counts[out]++; 
-            }
-        }
+        for (uint16_t o = 0; o < SNN_NUM_OUTPUTS; o++)
+            if (net->nodes[o].has_fired) spike_counts[o]++;
     }
-
-    uint8_t best_class = 0;
-    uint32_t best_count = spike_counts[0];
-    for (uint8_t c = 1; c < SNN_NUM_HW_CLASSES; c++) {
-        if (spike_counts[c] > best_count) {
-            best_count = spike_counts[c];
-            best_class = c;
-        }
-    }
-
-    if (best_count == 0) {
-        return 255;
-    }
-
-    return best_class;
 }
 
+uint8_t evaluate_network(snn_network_t *net, const float *trace, size_t trace_length) {
+    uint32_t counts[SNN_NUM_OUTPUTS];
+    run_inference(net, trace, trace_length, counts);
+    uint8_t  best = 0; uint32_t best_c = counts[0], total = counts[0];
+    for (uint8_t c = 1; c < SNN_NUM_HW_CLASSES; c++) {
+        total += counts[c];
+        if (counts[c] > best_c) { best_c = counts[c]; best = c; }
+    }
+    return (total == 0) ? 255 : best;
+}
 
-void engine_evaluate_generation(candidate_t *pop, size_t population_size, const ascad_dataset_t *ds) {
+void snn_predict_proba(snn_network_t *net, const float *trace, size_t trace_length,
+                       float out_probs[SNN_NUM_OUTPUTS]) {
+    uint32_t counts[SNN_NUM_OUTPUTS];
+    run_inference(net, trace, trace_length, counts);
+    uint32_t total = 0;
+    for (int c = 0; c < SNN_NUM_OUTPUTS; c++) total += counts[c];
+    float denom = (float)total + (float)SNN_NUM_OUTPUTS * READOUT_ALPHA;
+    for (int c = 0; c < SNN_NUM_OUTPUTS; c++)
+        out_probs[c] = ((float)counts[c] + READOUT_ALPHA) / denom;
+}
+
+#define EVAL_BATCH_SIZE 2000
+
+void engine_evaluate_generation(candidate_t *pop, size_t population_size,
+                                const ascad_dataset_t *ds, float alpha) {
     if (!pop || !ds || ds->num_traces == 0) return;
 
-    const float w_accuracy  = 0.60f;
-    const float w_diversity = 0.20f;
-    const float w_utility   = 0.20f;
+    size_t batch = ds->num_traces < EVAL_BATCH_SIZE ? ds->num_traces : EVAL_BATCH_SIZE;
 
-    const uint16_t THRESHOLD_SYNAPSES = 200;
-    const uint16_t THRESHOLD_NEURONS  = 45;
-    const float PENALTY_SYNAPSE = 0.008f; 
-    const float PENALTY_NEURON  = 0.020f;
-
-    // Maximum entropy for 9 classes = log2(9) ≈ 3.17
-    const float MAX_ENTROPY = logf((float)SNN_NUM_HW_CLASSES);
+    size_t *indices = malloc(ds->num_traces * sizeof(size_t));
+    for (size_t i = 0; i < ds->num_traces; i++) indices[i] = i;
+    for (size_t i = ds->num_traces - 1; i > 0; i--) {
+        size_t j = (size_t)rand() % (i + 1);
+        size_t tmp = indices[i]; indices[i] = indices[j]; indices[j] = tmp;
+    }
 
     #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < population_size; i++) {
         snn_network_t *net = pop[i].network;
-        if (!net) {
-            pop[i].fitness_score = 0.0f;
-            continue;
+        if (!net) { pop[i].fitness_score = 0.0f; continue; }
+        uint32_t correct = 0;
+        for (size_t b = 0; b < batch; b++) {
+            size_t t = indices[b];
+            const float *trace = &ds->traces[t * ds->trace_length];
+            if (evaluate_network(net, trace, ds->trace_length) == ds->labels[t])
+                correct++;
         }
-
-        uint32_t gt[SNN_NUM_HW_CLASSES]   = {0};  // ground truth count per class
-        uint32_t pred[SNN_NUM_HW_CLASSES] = {0};  // prediction count per class
-        uint32_t tp[SNN_NUM_HW_CLASSES]   = {0};  // true positives per class
-        uint32_t valid = 0;
-
-        for (size_t t = 0; t < ds->num_traces; t++) {
-            const uint8_t label = ds->labels[t];
-            gt[label]++;
-
-            const int8_t *trace = &ds->traces[t * ds->trace_length];
-            const uint8_t out = evaluate_network(net, trace, ds->trace_length);
-
-            if (out != 255) {
-                pred[out]++;
-                valid++;
-                if (out == label) tp[label]++;
-            }
-        }
-
-        if (valid == 0) {
-            pop[i].fitness_score = 0.0f;
-            continue;
-        }
-
-        // each class contributes equally regardless of how many samples preventing the network from ignoring rare classes
-        // (HW 0, 1, 7, 8) in favor of the common ones (HW 3, 4, 5).
-        float recall_sum = 0.0f;
-        int active_classes = 0;
-        for (int c = 0; c < SNN_NUM_HW_CLASSES; c++) {
-            if (gt[c] > 0) {
-                recall_sum += (float)tp[c] / (float)gt[c];
-                active_classes++;
-            }
-        }
-        float accuracy = (active_classes > 0) ? recall_sum / active_classes : 0.0f;
-
-        // normalized Shannon entropy of predictions
-        // Measures how spread out the predictions are across classes.
-        float entropy = 0.0f;
-        for (int c = 0; c < SNN_NUM_HW_CLASSES; c++) {
-            if (pred[c] > 0) {
-                float p = (float)pred[c] / (float)valid;
-                entropy -= p * logf(p);
-            }
-        }
-        float diversity = entropy / MAX_ENTROPY;  // normalized to [0, 1]
-
-        // fraction of traces that produced a decision
-        float utility = (float)valid / (float)ds->num_traces;
-
-        // complexity penalty
-        float penalty = 0.0f;
-        if (net->num_synapses > THRESHOLD_SYNAPSES) {
-            penalty += (net->num_synapses - THRESHOLD_SYNAPSES) * PENALTY_SYNAPSE;
-        }
-        if (net->num_hidden > THRESHOLD_NEURONS) {
-            penalty += (net->num_hidden - THRESHOLD_NEURONS) * PENALTY_NEURON;
-        }
-
-        float raw = w_accuracy  * accuracy
-                   + w_diversity * diversity
-                   + w_utility   * utility
-                   - penalty;
-
-        pop[i].fitness_score = (raw > 0.0f) ? raw : 0.0f;
+        float accuracy     = (float)correct / (float)batch;
+        float size_penalty = (float)(net->num_synapses + SNN_LIF_COUNT(net)) * alpha;
+        pop[i].fitness_score = accuracy - size_penalty;
     }
+
+    free(indices);
 }
