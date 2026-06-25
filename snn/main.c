@@ -6,9 +6,15 @@
 #include "EONS/export.h"
 #include "libs/dataset.h"
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    int main_gen = 0;
+    if (argc > 1) {
+        main_gen = atoi(argv[1]);
+        if (main_gen < 0) main_gen = 0;
+    }
     srand((unsigned)time(NULL));
     printf("Neuromorphic SCA: EONS on AES_HD\n");
+    printf("Running for %d generations\n", main_gen > 0 ? main_gen : 100);
 
     const char *h5_path = "../modulated_dataset/aes_hd_snn_ready.h5";
 
@@ -27,7 +33,7 @@ int main(void) {
 
     candidate_t   *population = engine_get_population();
     eons_params_t  params     = eons_default_params();
-    params.num_generations    = 5;
+    params.num_generations    = main_gen > 0 ? main_gen : 100;
 
     char seed_names[4][128] = {
         "network-csvs/seed_1", "network-csvs/seed_2",
@@ -53,7 +59,7 @@ int main(void) {
     int best_idx = 0;
 
     for (int gen = 0; gen < params.num_generations; gen++) {
-        engine_evaluate_generation(population, POPULATION_SIZE, ds, 1e-6f);
+        engine_evaluate_generation(population, POPULATION_SIZE, ds, 1e-4f);
 
         float best_fit = -1e9f;
         for (int i = 0; i < POPULATION_SIZE; i++)
@@ -80,7 +86,7 @@ int main(void) {
         engine_swap_arenas();
     }
 
-    engine_evaluate_generation(population, POPULATION_SIZE, ds, 1e-6f);
+    engine_evaluate_generation(population, POPULATION_SIZE, ds, 1e-4f);
     best_idx = 0; float fb = -1e9f;
     for (int i = 0; i < POPULATION_SIZE; i++)
         if (population[i].fitness_score > fb) { fb = population[i].fitness_score; best_idx = i; }

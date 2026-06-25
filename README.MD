@@ -1,16 +1,15 @@
-Here is a revised version of the README. I kept the technical structure and methodology exactly the same, but loosened up the phrasing, varied the sentence lengths, and removed some of the overly "perfect" transitional filler that gives AI-generated text away. It should sound much more like a developer documenting their own engine.
-
----
-
 # Embedded Spiking Neural Network for Side-Channel Analysis
 
-SNN trained on AES_HD using Evolutionary Optimization for Neuromorphic Systems (EONS).
+An SNN modeled using Evolutionary Optimization for Neuromorphic Systems (EONS) and trained on the AES_HD dataset.
 
-## The Problem
+This project explores the use of event-driven Spiking Neural Networks (SNNs) for Side-Channel Analysis (SCA) of AES power traces. The objective is to train an optimized neuromorphic model capable of classifying side-channel leakage to recover secret cryptographic keys.
 
-Unprotected AES leaks through EM radiation during the final round. The Hamming Distance between consecutive register states (0–8) correlates with power consumption. Predict HD correctly, recover the key.
+**HW Classes:**
+During cryptographic operations, hardware implementations leak electromagnetic radiation that correlates with the number of active bit transitions being processed. For AES hardware implementations, the most exploitable leakage is the **Hamming Distance (HD)** between consecutive register states during the last round. Since AES processes 8-bit bytes, there are **9 possible Hamming Distance classes (HD 0 through HD 8)**.
 
-The network classifies 20 power features into 9 HD classes. Small and efficient enough for FPGA deployment.
+The SNN acts as a classifier. It takes a vector of power amplitude features as input and predicts which of the 9 HD classes the targeted AES operation belongs to. By correctly predicting the Hamming Distance of the inverse S-Box operation on the ciphertext, the network effectively discovers the secret key.
+
+The project also focuses on developing a hardware-efficient SNN architecture suitable for embedded implementation in VHDL and deployment on FPGA platforms.
 
 ## Workflow
 
@@ -22,7 +21,7 @@ The network classifies 20 power features into 9 HD classes. Small and efficient 
 
 ## Dataset
 
-AES_HD: 100k EM traces from an unprotected AES-128 core on a Xilinx Virtex-5 FPGA (SASEBO GII). Parallel architecture, 11 cycles per encryption. Near-field probe over decoupling cap on power line.
+AES_HD: 100k EM traces from an unprotected AES-128 core on a Xilinx Virtex-5 FPGA (SASEBO GII). Parallel architecture, 11 cycles per encryption. Traces captured by a near-field EM probe measuring the electromagnetic radiation of a decoupling capacitor on the power supply line.
 
 Leakage target (last-round register write):
 
@@ -64,7 +63,9 @@ pip install -r requirements.txt
 
 ## Engine: LIF Neurons
 
-Leaky Integrate-and-Fire. Membrane potential accumulates input, decays toward rest, fires at threshold, resets and refractory.
+The engine uses the Leaky Integrate-and-Fire (LIF) neuron model.
+
+A LIF neuron accumulates incoming weighted inputs in its membrane potential. Over time, this potential naturally decays toward a resting value (the leak effect). When the membrane potential exceeds a threshold, the neuron emits a spike and resets its state.
 
 ```c
 typedef struct {
@@ -79,20 +80,9 @@ typedef struct {
 } lif_neuron_t;
 ```
 
-## Input Encoding
-
-Spatial encoding: each of 20 POIs maps to a dedicated input neuron. Feature identity by position, not timing.
-
-Synaptic drive from inputs:
-```c
-drive = (int32_t)((float)syn->weight * net->input_values[src]);
-```
-
-Amplitude-weighted multiplication. Hidden/output neurons deliver binary drive on spike.
-
-Inference: present trace for 20 ticks with input held steady. Readout accumulates spike counts.
-
 ## Synapses
+
+The z-scored amplitude value at each POI is multiplied by the synaptic weight, giving graded excitation proportional to the leakage magnitude. Hidden and output neuron spikes deliver binary drive as in standard SNNs.
 
 ```c
 typedef struct {
@@ -101,6 +91,18 @@ typedef struct {
     int8_t   weight;
 } synapse_t;
 ```
+
+## Input Encoding
+
+Spatial encoding: each of 20 POIs maps to a dedicated input neuron. Feature identity is determined by *which* neuron receives the signal
+
+Synaptic drive from inputs:
+```c
+drive = (int32_t)((float)syn->weight * net->input_values[src]);
+```
+
+Each trace is presented to the network for a fixed window of 20 inference ticks. The input is re-asserted every tick, allowing the recurrent and output dynamics time to settle and accumulate spike counts in the readout layer. 
+
 
 ## Simulation Step
 
@@ -112,13 +114,8 @@ Each tick:
 5. Fire neurons at threshold, enter refractory.
 6. Clear accumulators.
 
-After 20 ticks: output class = neuron with most spikes.
-
-## Memory Management
-
-Double-buffered arena allocator. Generations swap between active/inactive buffers. Old population wiped in O(1) by resetting pointer. Avoids malloc/free overhead.
-
 ## Fitness Evaluation
+as per *EONS*: 
 
 ```c
 float accuracy     = (float)correct / (float)batch;
@@ -126,18 +123,17 @@ float size_penalty = (float)(net->num_synapses + SNN_LIF_COUNT(net)) * alpha;
 pop[i].fitness_score = accuracy - size_penalty;
 ```
 
-Evaluate on 2k-trace minibatches (not full 84k). Stochastic variance helps escape local optima. Random guessing baseline: 1/9 ≈ 0.111.
+Evaluate on 2k-trace minibatches. Random guessing baseline: 1/9 ≈ 0.111.
 
-## Key Recovery
+### Breaking AES
+The evolved SNN maps z-scored power amplitude features to the correct Hamming Distance class of the targeted last-round register write.
 
-Last-round inverse S-Box:
-```
-Intermediate_State = SBox_inv[Ciphertext_byte ⊕ Secret_Key_byte]
-```
+During the last round of AES, the chip performs the inverse S-Box substitution:
+`Intermediate_State = SBox_inv[Ciphertext_byte ⊕ Secret_Key_byte]`
 
-Known ciphertext + predicted HD → enumerate 256 key byte hypotheses. Calculate expected HD per guess, compare to network output. Correct hypothesis matches across many traces.
+The SNN analyzes the power trace at the top-SNR time samples and predicts the Hamming Distance between consecutive register states.
 
-16 bytes = 128-bit key.
+By knowing the Ciphertext and the predicted HD of the register transition, it becomes possible to enumerate all 256 hypotheses for a single key byte, compute the expected HD for each hypothesis, and compare it against the SNN's prediction. The hypothesis that consistently aligns with the SNN's output across many traces reveals the correct key byte. Repeating this process for all 16 bytes recovers the entire 128-bit AES master key.
 
 ---
 

@@ -8,8 +8,7 @@ from sklearn.model_selection import cross_val_score
 
 DATA_DIR  = "../AES_HD_Dataset"
 OUT_H5    = "../modulated_dataset/aes_hd_snn_ready.h5"
-NUM_POIS  = 20
-
+NUM_POIS  = 10
 print("Loading AES_HD traces...")
 dfs = []
 for i in range(1, 6):
