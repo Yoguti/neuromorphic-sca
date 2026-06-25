@@ -27,7 +27,7 @@ int main(void) {
 
     candidate_t   *population = engine_get_population();
     eons_params_t  params     = eons_default_params();
-    params.num_generations    = 500;
+    params.num_generations    = 5;
 
     char seed_names[4][128] = {
         "network-csvs/seed_1", "network-csvs/seed_2",

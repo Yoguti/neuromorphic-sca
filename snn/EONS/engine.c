@@ -5,8 +5,11 @@
 #include <stdlib.h>
 
 #define ARENA_CAPACITY (1024 * 1024 * 64)
-#define INFERENCE_TICKS 20
+#define INFERENCE_TICKS 40
 #define READOUT_ALPHA   1.0f
+
+#define EVAL_BATCH_SIZE 2000
+#define SPIKE_PENALTY_WEIGHT 0.0001f
 
 static Arena *arena_A      = NULL;
 static Arena *arena_B      = NULL;
@@ -74,8 +77,6 @@ void snn_predict_proba(snn_network_t *net, const float *trace, size_t trace_leng
         out_probs[c] = ((float)counts[c] + READOUT_ALPHA) / denom;
 }
 
-#define EVAL_BATCH_SIZE 2000
-
 void engine_evaluate_generation(candidate_t *pop, size_t population_size,
                                 const ascad_dataset_t *ds, float alpha) {
     if (!pop || !ds || ds->num_traces == 0) return;
@@ -93,16 +94,33 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size,
     for (size_t i = 0; i < population_size; i++) {
         snn_network_t *net = pop[i].network;
         if (!net) { pop[i].fitness_score = 0.0f; continue; }
+        
         uint32_t correct = 0;
+        uint64_t total_spikes_all_batches = 0;
+
         for (size_t b = 0; b < batch; b++) {
             size_t t = indices[b];
             const float *trace = &ds->traces[t * ds->trace_length];
-            if (evaluate_network(net, trace, ds->trace_length) == ds->labels[t])
-                correct++;
+            
+            uint32_t counts[SNN_NUM_OUTPUTS];
+            run_inference(net, trace, ds->trace_length, counts);
+            
+            for (int o = 0; o < SNN_NUM_OUTPUTS; o++) {
+                total_spikes_all_batches += counts[o];
+            }
+
+            uint8_t best = 0; uint32_t best_c = counts[0];
+            for (uint8_t c = 1; c < SNN_NUM_HW_CLASSES; c++) {
+                if (counts[c] > best_c) { best_c = counts[c]; best = c; }
+            }
+            if (best == ds->labels[t]) correct++;
         }
-        float accuracy     = (float)correct / (float)batch;
-        float size_penalty = (float)(net->num_synapses + SNN_LIF_COUNT(net)) * alpha;
-        pop[i].fitness_score = accuracy - size_penalty;
+        
+        float accuracy      = (float)correct / (float)batch;
+        float size_penalty  = (float)(net->num_synapses + SNN_LIF_COUNT(net)) * alpha;
+        float spike_penalty = (float)total_spikes_all_batches * SPIKE_PENALTY_WEIGHT;
+        
+        pop[i].fitness_score = accuracy - size_penalty - spike_penalty;
     }
 
     free(indices);
