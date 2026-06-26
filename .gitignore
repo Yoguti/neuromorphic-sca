@@ -19,6 +19,7 @@ __pycache__/
 *.a
 *.lib
 
+modulated_dataset/plots
 data-prep/modulate_data
 data-prep/benchmark_conversion
 snn/test.c
