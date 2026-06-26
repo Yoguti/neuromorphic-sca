@@ -1,0 +1,25 @@
+Loading AES_HD from NPZ...
+Master key:     2b7e151628aed2a6abf7158809cf4f3c
+Last round key: d014f9a8c9ee2589e13f0cc8b6630ca6
+Target: HW( InvSbox[ct[15] ^ rk_last[15]] ^ ct[11] )
+True rk_last[15] = 166
+No existing labels.csv to cross-check (proceeding with computed labels).
+Loading traces...
+Loaded: 50000 traces x 1250 samples
+Classes: [0 1 2 3 4 5 6 7 8], counts: [  206  1581  5484 10994 13710 10793  5477  1575   180]
+Top 20 POI indices: [ 957  958  959  960  961  962  963  964  965  966  967  968  969  970
+  971 1094 1095 1096 1100 1101]
+SNR at selected POIs: max=0.056200, min=0.012916
+Plots saved to ../modulated_dataset/plots/
+
+==================== POI SWEEP ====================
+  POIs    LR_bal    RF_bal
+    10    0.1440    0.1122
+    20    0.1399    0.1157
+    50    0.1435    0.1152
+   100    0.1438    0.1171
+   200    0.1520    0.1157
+   400    0.1518    0.1145
+==================================================
+Best LR balanced acc at 200 POIs (0.1520)
+Plot: ../modulated_dataset/plots/05_poi_sweep.png

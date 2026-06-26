@@ -1,6 +1,24 @@
 #include "export.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+static void ensure_parent_dir(const char *path) {
+    char tmp[512];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    char *slash = strrchr(tmp, '/');
+    if (!slash) return;
+    *slash = '\0';
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            mkdir(tmp, 0755);
+            *p = '/';
+        }
+    }
+    mkdir(tmp, 0755);
+}
 
 int export_network_csv(const snn_network_t *net, const char *basename) {
     if (!net || !basename) return -1;
@@ -9,6 +27,8 @@ int export_network_csv(const snn_network_t *net, const char *basename) {
     char synapse_path[512];
     snprintf(neuron_path, sizeof(neuron_path), "%s_neurons.csv", basename);
     snprintf(synapse_path, sizeof(synapse_path), "%s_synapses.csv", basename);
+
+    ensure_parent_dir(neuron_path);
 
     FILE *nf = fopen(neuron_path, "w");
     if (!nf) {
@@ -82,7 +102,7 @@ snn_network_t* import_network_csv(Arena *arena, const char *base_filename) {
     }
     fclose(fn);
 
-    fgets(line, sizeof(line), fs); 
+    fgets(line, sizeof(line), fs);
     while (fgets(line, sizeof(line), fs)) {
         int src, tgt, weight;
         if (sscanf(line, "%d,%d,%d", &src, &tgt, &weight) == 3) {
