@@ -6,8 +6,8 @@
 #include <stdlib.h>
 
 #define ARENA_CAPACITY (1024 * 1024 * 64)
-#define INFERENCE_TICKS 40
-#define READOUT_ALPHA 1.0f
+#define INFERENCE_TICKS 100
+#define READOUT_ALPHA 10.0f
 #define PER_CLASS_SAMPLES 2000
 #define SIZE_PENALTY_COEFF 1e-7f
 
@@ -145,7 +145,7 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size,
         }
         float mean_log_likelihood = log_likelihood_sum / (float)batch;
         float size_penalty = (float)(net->num_synapses + SNN_LIF_COUNT(net)) * SIZE_PENALTY_COEFF;
-        size_penalty = 0; // testing
+        // size_penalty = 0;
         pop[i].fitness_score = mean_log_likelihood - size_penalty;
     }
 
