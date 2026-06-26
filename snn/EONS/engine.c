@@ -9,6 +9,7 @@
 #define INFERENCE_TICKS 40
 #define READOUT_ALPHA 1.0f
 #define PER_CLASS_SAMPLES 2000
+#define SIZE_PENALTY_COEFF 1e-7f
 
 static Arena *arena_A = NULL;
 static Arena *arena_B = NULL;
@@ -107,6 +108,7 @@ static void build_class_index(const ascad_dataset_t *ds) {
 
 void engine_evaluate_generation(candidate_t *pop, size_t population_size,
                                 const ascad_dataset_t *ds, float alpha) {
+    (void)alpha;
     if (!pop || !ds || ds->num_traces == 0) return;
 
     build_class_index(ds);
@@ -142,7 +144,8 @@ void engine_evaluate_generation(candidate_t *pop, size_t population_size,
             log_likelihood_sum += logf(out_probs[ds->labels[t]] + 1e-9f);
         }
         float mean_log_likelihood = log_likelihood_sum / (float)batch;
-        float size_penalty = (float)(net->num_synapses + SNN_LIF_COUNT(net)) * alpha;
+        float size_penalty = (float)(net->num_synapses + SNN_LIF_COUNT(net)) * SIZE_PENALTY_COEFF;
+        size_penalty = 0; // testing
         pop[i].fitness_score = mean_log_likelihood - size_penalty;
     }
 
