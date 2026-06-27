@@ -136,7 +136,7 @@ The Random guessing baseline is about 1/9 ≈ 0.111, any accuracy above the log 
 
 2. **Diversity**: Appling diversity rules to the fitness evaluation seems to generate networks that distribute their guesses across rarer **HD** by random chance, in order to increase ther diversity rate and survive culling.
 
-3. **Variant penalties**: Introducing an exploratory period (where no size penalties apply) might seem correct, allowing for the network to grow and explore before prunning suboptimal structures. In testing, this early life penalty-free phase led to networks that would stop their scores briefly before hitting the penalty paywall. e.g.: if the penalty was applied at .30 fidelity, networks would rise up to .29 and would keep on trying to optimize for 0.2$\overline{9}$ for all next generations.
+3. **Variant penalties**: Introducing an exploratory period (where no size penalties apply) might seem correct, allowing for the network to grow and explore before prunning suboptimal structures. In testing, this early life penalty-free phase led to networks that would stop their scores briefly before hitting the penalty paywall. e.g.: if the penalty was applied at .30 fidelity, networks would rise up to .29 and would keep on trying to optimize for 0.29̅9 for all next generations.
 
 ---
 
