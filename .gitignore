@@ -1,6 +1,7 @@
 # Ignore dataset files and generated data
 ATMEGA-AES-ASCAD_databases/
-
+/AES_HD_Dataset
+/modulated_dataset
 data-prep/.venv/
 
 __pycache__/
