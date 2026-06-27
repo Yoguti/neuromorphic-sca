@@ -21,7 +21,7 @@ The project also focuses on developing a hardware-efficient SNN architecture sui
 
 ## Dataset
 
-AES_HD: 100k EM traces from an unprotected AES-128 core on a Xilinx Virtex-5 FPGA (SASEBO GII). Parallel architecture, 11 cycles per encryption. Traces captured by a near-field EM probe measuring the electromagnetic radiation of a decoupling capacitor on the power supply line.
+AES_HD: 100k EM traces from an unprotected AES-128 core on a Xilinx Virtex-5 FPGA (SASEBO GII). Traces captured by a probe measuring the electromagnetic radiation of a capacitor on the power supply line.
 
 Leakage target (last-round register write):
 
@@ -47,9 +47,7 @@ Output: 20-dim float32 vector (z-scored power amplitudes).
 
 ## Environment
 
-The Python environment for data prep is kept in `data-prep/.venv/` (excluded from git).
-
-To spin it up:
+Setup for generating the modulated dataset and running python testbenches 
 
 ```bash
 cd data-prep
